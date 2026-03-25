@@ -7,72 +7,84 @@ const interviewSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "Please provide a user ID"],
     },
-    role: {
-      type: String,
-      required: [true, "Please provide a job role"],
-      trim: true,
-      maxlength: [100, "Role cannot exceed 100 characters"],
-    },
-    mode: {
+    jobRole: {
       type: String,
       enum: {
-        values: ["text", "video", "audio"],
-        message: "Mode must be one of: text, video, audio",
+        values: ["frontend", "backend", "fullstack", "java", "hr"],
+        message: "Job role must be one of: frontend, backend, fullstack, java, hr",
       },
-      required: [true, "Please specify interview mode"],
+      required: [true, "Please provide a job role"],
+    },
+    experienceLevel: {
+      type: String,
+      enum: {
+        values: ["junior", "mid", "senior"],
+        message: "Experience level must be one of: junior, mid, senior",
+      },
+      required: [true, "Please provide experience level"],
+    },
+    interviewType: {
+      type: String,
+      enum: {
+        values: ["technical", "behavioral", "all"],
+        message: "Interview type must be one of: technical, behavioral, all",
+      },
+      required: [true, "Please specify interview type"],
+    },
+    difficultyLevel: {
+      type: String,
+      enum: {
+        values: ["easy", "medium", "hard"],
+        message: "Difficulty level must be one of: easy, medium, hard",
+      },
+      required: [true, "Please specify difficulty level"],
+    },
+    numberOfQuestions: {
+      type: Number,
+      required: true,
+      min: [1, "Must have at least 1 question"],
+      max: [20, "Cannot exceed 20 questions"],
+      default: 5,
     },
     questions: [
       {
-        question: {
-          type: String,
-          required: true,
-        },
-        difficulty: {
-          type: String,
-          enum: ["easy", "medium", "hard"],
-          default: "medium",
-        },
+        type: String,
+        required: true,
       },
     ],
     answers: [
       {
-        questionId: String,
-        answer: String,
-        timestamp: {
-          type: Date,
-          default: Date.now,
-        },
+        type: String,
+        default: "",
       },
     ],
-    scores: {
-      technical: {
+    evaluation: {
+      score: {
         type: Number,
         min: 0,
         max: 100,
         default: 0,
       },
-      communication: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
+      strengths: {
+        type: String,
+        default: "",
       },
-      confidence: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
+      weaknesses: {
+        type: String,
+        default: "",
       },
-      overall: {
-        type: Number,
-        min: 0,
-        max: 100,
-        default: 0,
+      suggestions: {
+        type: String,
+        default: "",
       },
-    },
-    feedback: {
-      type: String,
-      maxlength: [5000, "Feedback cannot exceed 5000 characters"],
+      modelAnswer: {
+        type: String,
+        default: "",
+      },
+      interviewTips: {
+        type: String,
+        default: "",
+      },
     },
     status: {
       type: String,
@@ -96,5 +108,7 @@ const interviewSchema = new mongoose.Schema(
 
 // Index for faster queries
 interviewSchema.index({ userId: 1, createdAt: -1 });
+interviewSchema.index({ jobRole: 1 });
+interviewSchema.index({ status: 1 });
 
 module.exports = mongoose.model("Interview", interviewSchema);

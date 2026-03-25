@@ -19,30 +19,78 @@ const schemas = {
     password: Joi.string().required(),
   }),
 
+  startInterview: Joi.object({
+    jobRole: Joi.string()
+      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .required(),
+    experienceLevel: Joi.string()
+      .valid("junior", "mid", "senior")
+      .required(),
+    interviewType: Joi.string()
+      .valid("technical", "behavioral", "all")
+      .required(),
+    difficultyLevel: Joi.string()
+      .valid("easy", "medium", "hard")
+      .required(),
+    numberOfQuestions: Joi.number()
+      .min(1)
+      .max(20)
+      .default(5),
+  }),
+
+  generateQuestions: Joi.object({
+    jobRole: Joi.string()
+      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .required(),
+    experienceLevel: Joi.string()
+      .valid("junior", "mid", "senior")
+      .required(),
+    interviewType: Joi.string()
+      .valid("technical", "behavioral", "all")
+      .required(),
+    difficultyLevel: Joi.string()
+      .valid("easy", "medium", "hard")
+      .required(),
+    numberOfQuestions: Joi.number()
+      .min(1)
+      .max(20)
+      .default(5),
+  }),
+
+  submitAnswer: Joi.object({
+    answer: Joi.string().required().min(5).max(5000),
+    questionIndex: Joi.number().min(0).required(),
+  }),
+
+  completeInterview: Joi.object({
+    answers: Joi.array()
+      .items(Joi.string().required())
+      .required()
+      .min(1),
+  }),
+
   createInterview: Joi.object({
-    role: Joi.string().trim().min(2).max(100).required(),
-    mode: Joi.string().valid("text", "video", "audio").required(),
-    questions: Joi.array().items(
-      Joi.object({
-        question: Joi.string().required(),
-        difficulty: Joi.string().valid("easy", "medium", "hard"),
-      })
-    ),
+    jobRole: Joi.string()
+      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .required(),
+    experienceLevel: Joi.string()
+      .valid("junior", "mid", "senior")
+      .required(),
+    interviewType: Joi.string()
+      .valid("technical", "behavioral", "all")
+      .required(),
+    difficultyLevel: Joi.string()
+      .valid("easy", "medium", "hard")
+      .required(),
+    numberOfQuestions: Joi.number()
+      .min(1)
+      .max(20)
+      .default(5),
+    questions: Joi.array().items(Joi.string()),
   }),
 
   updateInterview: Joi.object({
-    answers: Joi.array().items(
-      Joi.object({
-        questionId: Joi.string().required(),
-        answer: Joi.string().required(),
-      })
-    ),
-    scores: Joi.object({
-      technical: Joi.number().min(0).max(100),
-      communication: Joi.number().min(0).max(100),
-      confidence: Joi.number().min(0).max(100),
-    }),
-    feedback: Joi.string().max(5000),
+    answers: Joi.array().items(Joi.string()),
     status: Joi.string().valid("in-progress", "completed", "failed"),
   }),
 };
