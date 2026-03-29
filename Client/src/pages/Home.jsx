@@ -1,7 +1,9 @@
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 const Home = () => {
+  const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
 
   return (
@@ -24,10 +26,16 @@ const Home = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 {isAuthenticated ? (
                   <>
-                    <button className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold hover:shadow-lg transition">
+                    <button 
+                      onClick={() => navigate('/interview-mode')}
+                      className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold hover:shadow-lg transition"
+                    >
                       Start Interview
                     </button>
-                    <button className="px-8 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-white transition">
+                    <button 
+                      onClick={() => navigate('/dashboard')}
+                      className="px-8 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-white transition"
+                    >
                       View History
                     </button>
                   </>

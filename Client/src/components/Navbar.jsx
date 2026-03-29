@@ -29,6 +29,12 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-6">
             {isAuthenticated ? (
               <>
+                <Link
+                  to="/interview-mode"
+                  className="text-gray-700 hover:text-primary transition font-medium"
+                >
+                  Start Interview
+                </Link>
                 <span className="text-gray-700">
                   Welcome, <span className="font-semibold">{user?.name}</span>
                 </span>
@@ -76,6 +82,13 @@ const Navbar = () => {
                 <div className="text-gray-700 px-2 py-2">
                   Welcome, <span className="font-semibold">{user?.name}</span>
                 </div>
+                <Link
+                  to="/interview-mode"
+                  onClick={() => setIsOpen(false)}
+                  className="block px-4 py-2 text-gray-700 hover:text-primary transition font-medium"
+                >
+                  Start Interview
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-left"
