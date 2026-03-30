@@ -33,7 +33,7 @@ const Home = () => {
                       Start Interview
                     </button>
                     <button 
-                      onClick={() => navigate('/dashboard')}
+                      onClick={() => navigate('/dashboard?tab=history')}
                       className="px-8 py-3 border-2 border-primary text-primary rounded-lg font-semibold hover:bg-primary hover:text-white transition"
                     >
                       View History

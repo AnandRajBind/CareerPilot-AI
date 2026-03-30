@@ -91,7 +91,7 @@ export const InterviewProvider = ({ children }) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await interviewService.completeInterview(currentInterview.interviewId);
+      const result = await interviewService.completeInterview(currentInterview.interviewId, answers);
       setResults(result);
       return result;
     } catch (err) {
@@ -101,7 +101,7 @@ export const InterviewProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [currentInterview]);
+  }, [currentInterview, answers]);
 
   const resetInterview = useCallback(() => {
     setCurrentInterview(null);

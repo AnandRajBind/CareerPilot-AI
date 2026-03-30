@@ -10,6 +10,7 @@ import Register from './pages/Register'
 import InterviewMode from './pages/InterviewMode'
 import InterviewScreen from './pages/InterviewScreen'
 import InterviewResults from './pages/InterviewResults'
+import Dashboard from './pages/Dashboard'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/interview-mode" element={<ProtectedRoute><InterviewMode /></ProtectedRoute>} />
               <Route path="/interview-screen" element={<ProtectedRoute><InterviewScreen /></ProtectedRoute>} />
               <Route path="/interview-results" element={<ProtectedRoute><InterviewResults /></ProtectedRoute>} />

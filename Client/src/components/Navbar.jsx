@@ -35,6 +35,12 @@ const Navbar = () => {
                 >
                   Start Interview
                 </Link>
+                <Link
+                  to="/dashboard"
+                  className="text-gray-700 hover:text-primary transition font-medium"
+                >
+                  Dashboard
+                </Link>
                 <span className="text-gray-700">
                   Welcome, <span className="font-semibold">{user?.name}</span>
                 </span>
@@ -88,6 +94,13 @@ const Navbar = () => {
                   className="block px-4 py-2 text-gray-700 hover:text-primary transition font-medium"
                 >
                   Start Interview
+                </Link>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="block px-4 py-2 text-gray-700 hover:text-primary transition font-medium"
+                >
+                  Dashboard
                 </Link>
                 <button
                   onClick={handleLogout}

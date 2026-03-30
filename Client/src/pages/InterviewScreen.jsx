@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
-  const { currentInterview, currentQuestionIndex, currentAnswer, submitAnswer, loading, error, isLastQuestion, progressPercentage, goToQuestion, completeInterview } = useInterview();
+  const { currentInterview, currentQuestionIndex, currentAnswer, submitAnswer, loading, error, isLastQuestion, progressPercentage, goToQuestion, completeInterview, answers } = useInterview();
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes per question
   const [answerText, setAnswerText] = useState('');
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
@@ -80,12 +80,19 @@ export default function InterviewScreen() {
   const handleNext = async () => {
     if (answerSubmitted) {
       if (isLastQuestion) {
+        // Validate all questions are answered
+        const allAnswered = answers.every(ans => ans && ans.trim().length > 0);
+        if (!allAnswered) {
+          setLocalError('Please answer all questions before completing the interview');
+          return;
+        }
+
         setSubmitting(true);
         try {
           await completeInterview();
           navigate('/interview-results');
         } catch (err) {
-          setLocalError('Failed to complete interview');
+          setLocalError(err.response?.data?.error?.message || 'Failed to complete interview');
           console.error('Failed to complete interview:', err);
           setSubmitting(false);
         }
@@ -193,23 +200,32 @@ export default function InterviewScreen() {
           <div className="bg-white rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Question Navigator</h3>
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
-              {currentInterview.questions.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => goToQuestion(idx)}
-                  disabled={loading || answerSubmitted}
-                  className={`aspect-square rounded-lg font-bold transition-all ${
-                    idx === currentQuestionIndex
-                      ? 'bg-indigo-600 text-white shadow-lg scale-110'
-                      : idx < currentQuestionIndex
-                      ? 'bg-green-200 text-green-800 hover:bg-green-300'
-                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                  }`}
-                >
-                  {idx + 1}
-                </button>
-              ))}
+              {currentInterview.questions.map((_, idx) => {
+                const isAnswered = answers[idx] && answers[idx].trim().length > 0;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => goToQuestion(idx)}
+                    disabled={loading}
+                    title={isAnswered ? `Question ${idx + 1} - Answered` : `Question ${idx + 1} - Not answered`}
+                    className={`aspect-square rounded-lg font-bold transition-all ${
+                      idx === currentQuestionIndex
+                        ? 'bg-indigo-600 text-white shadow-lg scale-110'
+                        : isAnswered
+                        ? 'bg-green-200 text-green-800 hover:bg-green-300'
+                        : 'bg-red-100 text-red-800 hover:bg-red-200'
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
             </div>
+            <p className="text-sm text-gray-600 mt-4">
+              <span className="inline-block w-3 h-3 bg-green-200 rounded mr-2"></span>Answered
+              <span className="inline-block w-3 h-3 bg-red-100 rounded mx-2 ml-4"></span>Not Answered
+              <span className="inline-block w-3 h-3 bg-indigo-600 rounded mx-2 ml-4"></span>Current
+            </p>
           </div>
         </div>
       </div>

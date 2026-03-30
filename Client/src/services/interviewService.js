@@ -43,8 +43,10 @@ export const interviewService = {
   /**
    * Complete interview and get final evaluation
    */
-  completeInterview: async (interviewId) => {
-    const response = await api.post(`/interviews/${interviewId}/complete`);
+  completeInterview: async (interviewId, answers) => {
+    const response = await api.post(`/interviews/${interviewId}/complete`, {
+      answers,
+    });
     return response.data.data;
   },
 
@@ -61,7 +63,7 @@ export const interviewService = {
    */
   getInterviews: async () => {
     const response = await api.get('/interviews');
-    return response.data.data;
+    return response.data.data.interviews || [];
   },
 
   /**
