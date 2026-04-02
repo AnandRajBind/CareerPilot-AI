@@ -1,26 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useInterview } from '../hooks/useInterview';
 import { useNavigate } from 'react-router-dom';
 import SpeakButton from '../components/SpeakButton';
 import VoiceRecorder from '../components/VoiceRecorder';
+import VideoCamera from '../components/VideoCamera';
+import VideoRecorder from '../components/VideoRecorder';
+import VideoPlayback from '../components/VideoPlayback';
 import { speakText } from '../utils/speechUtils';
+import { isCameraSupported } from '../utils/videoUtils';
+import { Video } from 'lucide-react';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
   const { currentInterview, currentQuestionIndex, currentAnswer, submitAnswer, loading, error, isLastQuestion, progressPercentage, goToQuestion, completeInterview, answers } = useInterview();
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes per question
   const [answerText, setAnswerText] = useState('');
-  const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [autoSpeakDone, setAutoSpeakDone] = useState(false);
+  const [enableVideo, setEnableVideo] = useState(false);
+  const [mediaStream, setMediaStream] = useState(null);
+  const [showVideoPlayback, setShowVideoPlayback] = useState(false);
+  const [recordedVideo, setRecordedVideo] = useState(null);
+
+  // Video recording refs
+  const videoElementRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
 
   // Update local answer text when question changes
   useEffect(() => {
     setAnswerText(currentAnswer || '');
     setTimeLeft(300);
-    setAnswerSubmitted(false);
     setLocalError('');
     setAutoSpeakDone(false);
 
@@ -48,22 +60,41 @@ export default function InterviewScreen() {
     }
   }, [currentQuestionIndex, currentAnswer]);
 
-  // Timer effect
+  // Timer effect - auto move to next question when time runs out
   useEffect(() => {
-    if (timeLeft <= 0 || answerSubmitted) return;
+    if (timeLeft <= 0) {
+      handleAutoNext();
+      return;
+    }
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          handleSubmit();
-          return 0;
-        }
-        return prev - 1;
-      });
+      setTimeLeft((prev) => prev - 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft, answerSubmitted]);
+  }, [timeLeft]);
+
+  // Cleanup video only on component unmount (not on question change)
+  useEffect(() => {
+    return () => {
+      // Only stop video when leaving the interview screen completely
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Attach media stream to video element when it becomes available
+  useEffect(() => {
+    if (mediaStream && videoElementRef.current) {
+      console.log('Attaching stream to video element');
+      videoElementRef.current.srcObject = mediaStream;
+      // Play the video
+      videoElementRef.current.play().catch(err => {
+        console.warn('Video play error:', err);
+      });
+    }
+  }, [mediaStream]);
 
   if (!currentInterview) {
     return (
@@ -82,52 +113,201 @@ export default function InterviewScreen() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSubmit = async () => {
+  // Save current answer and validate
+  const saveCurrentAnswer = async () => {
     if (!answerText.trim()) {
-      setLocalError('Please enter an answer before submitting');
-      return;
+      setLocalError('Please enter an answer before proceeding');
+      return false;
     }
 
     if (answerText.trim().length < 10) {
       setLocalError('Answer must be at least 10 characters');
-      return;
+      return false;
     }
 
-    setSubmitting(true);
-    setLocalError('');
+    // Save answer to hook's state (this updates the answers array)
     try {
       await submitAnswer(answerText);
-      setAnswerSubmitted(true);
+      setLocalError('');
+      return true;
     } catch (err) {
-      setLocalError(err.response?.data?.error?.message || 'Failed to submit answer');
-      console.error('Failed to submit answer:', err);
-    } finally {
-      setSubmitting(false);
+      console.error('Failed to save answer:', err);
+      setLocalError('Failed to save answer. Please try again.');
+      return false;
+    }
+  };
+
+  // Auto move to next question when time runs out
+  const handleAutoNext = async () => {
+    if (await saveCurrentAnswer()) {
+      handleNext();
     }
   };
 
   const handleNext = async () => {
-    if (answerSubmitted) {
-      if (isLastQuestion) {
-        // Validate all questions are answered
-        const allAnswered = answers.every(ans => ans && ans.trim().length > 0);
-        if (!allAnswered) {
-          setLocalError('Please answer all questions before completing the interview');
-          return;
-        }
+    // Save current answer first
+    if (!(await saveCurrentAnswer())) {
+      return;
+    }
 
-        setSubmitting(true);
-        try {
-          await completeInterview();
-          navigate('/interview-results');
-        } catch (err) {
-          setLocalError(err.response?.data?.error?.message || 'Failed to complete interview');
-          console.error('Failed to complete interview:', err);
-          setSubmitting(false);
-        }
-      } else {
-        goToQuestion(currentQuestionIndex + 1);
+    if (isLastQuestion) {
+      // Submit all answers
+      handleCompleteInterview();
+    } else {
+      // Move to next question
+      goToQuestion(currentQuestionIndex + 1);
+    }
+  };
+
+  const handlePrevious = () => {
+    // Go back to previous question without requiring answer validation
+    if (currentQuestionIndex > 0) {
+      goToQuestion(currentQuestionIndex - 1);
+    }
+  };
+
+  const handleCompleteInterview = async () => {
+    // Validate all questions are answered
+    const allAnswered = answers.every(ans => ans && ans.trim().length > 0);
+    if (!allAnswered) {
+      setLocalError('Please answer all questions before completing the interview');
+      return;
+    }
+
+    // Stop video recording if active
+    if (enableVideo) {
+      stopVideoRecording();
+    }
+
+    setSubmitting(true);
+    try {
+      await completeInterview();
+      navigate('/interview-results');
+    } catch (err) {
+      setLocalError(err.response?.data?.error?.message || 'Failed to complete interview');
+      console.error('Failed to complete interview:', err);
+      setSubmitting(false);
+    }
+  };
+
+  // Video recording handlers
+  const getBestMimeType = () => {
+    const types = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264,opus',
+      'video/webm'
+    ];
+    
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('Using MIME type:', type);
+        return type;
       }
+    }
+    return '';
+  };
+
+  const startVideoRecording = async () => {
+    try {
+      console.log('Starting video recording...');
+      const constraints = {
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 },
+          facingMode: 'user'
+        },
+        audio: true
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Media stream obtained:', stream);
+      
+      // Set enableVideo to true FIRST so the video element is rendered
+      setEnableVideo(true);
+      
+      // Then set the stream - the useEffect will attach it to the element
+      setMediaStream(stream);
+
+      // Get best supported MIME type
+      const mimeType = getBestMimeType();
+      
+      // Create and configure MediaRecorder
+      const options = mimeType ? { mimeType } : {};
+      const mediaRecorder = new MediaRecorder(stream, options);
+
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const mimeTypeForBlob = mimeType || 'video/webm';
+        const blob = new Blob(chunksRef.current, { type: mimeTypeForBlob });
+        const videoUrl = URL.createObjectURL(blob);
+        console.log('Video blob created, size:', blob.size);
+        setRecordedVideo(videoUrl);
+        setShowVideoPlayback(true);
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('Recording error:', event.error);
+        setLocalError('Error during video recording: ' + event.error);
+      };
+
+      mediaRecorder.start();
+      console.log('Recording started');
+    } catch (err) {
+      console.error('Failed to start video recording:', err);
+      if (err.name === 'NotAllowedError') {
+        setLocalError('Camera/microphone permission denied. Please check your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        setLocalError('No camera/microphone found on your device.');
+      } else {
+        setLocalError('Error accessing camera/microphone: ' + err.message);
+      }
+      handleVideoError(err);
+    }
+  };
+
+  const stopVideoRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+
+    // Stop all tracks
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(track => track.stop());
+      setMediaStream(null);
+    }
+    setEnableVideo(false);
+  };
+
+  const toggleVideoMode = async () => {
+    if (!isCameraSupported()) {
+      setLocalError('Video recording is not supported on your device');
+      return;
+    }
+
+    if (enableVideo) {
+      stopVideoRecording();
+    } else {
+      await startVideoRecording();
+    }
+  };
+
+  const handleVideoError = (error) => {
+    console.error('Video error:', error);
+    if (error.name === 'NotAllowedError') {
+      setLocalError('Camera permission denied');
+    } else if (error.name === 'NotFoundError') {
+      setLocalError('No camera found');
+    } else {
+      setLocalError('Video error: ' + error.message);
     }
   };
 
@@ -170,73 +350,110 @@ export default function InterviewScreen() {
             <div className="mb-6">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h2 className="text-2xl font-bold text-gray-900">Question {currentQuestionIndex + 1}</h2>
-                <SpeakButton text={question} size="md" />
+                <div className="flex items-center gap-3">
+                  <SpeakButton text={question} size="md" />
+                  {isCameraSupported() && (
+                    <button
+                      onClick={toggleVideoMode}
+                      className={`p-3 rounded-lg font-bold transition-all ${
+                        enableVideo
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                      title={enableVideo ? 'Stop Video Recording' : 'Start Video Recording'}
+                    >
+                      <Video size={20} />
+                    </button>
+                  )}
+                </div>
               </div>
               <p className="text-lg text-gray-700 leading-relaxed">{question}</p>
             </div>
 
             {/* Answer Textarea */}
-            {!answerSubmitted ? (
-              <div className="space-y-4">
-                <textarea
-                  value={answerText}
-                  onChange={(e) => setAnswerText(e.target.value)}
-                  placeholder="Type your answer here... (minimum 10 characters)"
-                  className="w-full h-48 p-4 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none resize-none"
-                  disabled={submitting}
-                />
+            <div className="space-y-4">
+              <textarea
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+                placeholder="Type your answer here... (minimum 10 characters)"
+                className="w-full h-48 p-4 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none resize-none"
+                disabled={submitting}
+              />
 
-                {/* Voice Recorder */}
-                <VoiceRecorder
-                  onTranscript={(transcript) => {
-                    setAnswerText((prev) => prev + (prev ? ' ' : '') + transcript);
-                  }}
-                  onError={(error) => {
-                    setLocalError(error);
-                  }}
-                  autoInsert={true}
-                />
+              {/* Voice Recorder */}
+              <VoiceRecorder
+                onTranscript={(transcript) => {
+                  setAnswerText((prev) => prev + (prev ? ' ' : '') + transcript);
+                }}
+                onError={(error) => {
+                  setLocalError(error);
+                }}
+                autoInsert={true}
+              />
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">{answerText.length} characters</span>
+              {/* Video Recording Section */}
+              {enableVideo && (
+                <div className="bg-gray-900 rounded-lg overflow-hidden border-2 border-blue-400">
+                  <video
+                    ref={videoElementRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-64 bg-black object-cover"
+                  />
+                  <div className="bg-blue-500 text-white p-2 text-center text-sm font-bold">
+                    🔴 Recording in progress... Click Video button to stop
+                  </div>
+                </div>
+              )}
+
+              {showVideoPlayback && recordedVideo && (
+                <VideoPlayback
+                  videoUrl={recordedVideo}
+                  onRetake={() => {
+                    setRecordedVideo(null);
+                    setShowVideoPlayback(false);
+                    startVideoRecording();
+                  }}
+                  onSave={() => {
+                    setShowVideoPlayback(false);
+                    // Video is saved in state, ready to submit with answer
+                  }}
+                />
+              )}
+
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-sm text-gray-600">{answerText.length} characters</span>
+                <div className="flex gap-3">
+                  {currentQuestionIndex > 0 && (
+                    <button
+                      onClick={handlePrevious}
+                      disabled={submitting}
+                      className={`px-6 py-3 rounded-lg font-bold transition-all ${
+                        submitting
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-gray-500 text-white hover:bg-gray-600 hover:shadow-lg'
+                      }`}
+                    >
+                      {submitting ? 'Processing...' : '← Previous'}
+                    </button>
+                  )}
                   <button
-                    onClick={handleSubmit}
+                    onClick={handleNext}
                     disabled={submitting || answerText.trim().length < 10}
                     className={`px-8 py-3 rounded-lg font-bold transition-all ${
                       submitting || answerText.trim().length < 10
                         ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                        : isLastQuestion
+                        ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg'
                         : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'
                     }`}
                   >
-                    {submitting ? 'Submitting...' : 'Submit Answer'}
+                    {submitting ? 'Processing...' : isLastQuestion ? 'Complete Interview' : 'Next Question →'}
                   </button>
                 </div>
               </div>
-            ) : (
-              <div className="bg-green-50 p-6 rounded-lg border-2 border-green-200">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-3xl">✅</span>
-                  <p className="text-lg font-bold text-green-700">Answer Submitted Successfully!</p>
-                </div>
-                <p className="text-gray-700 mb-4 p-4 bg-white rounded">
-                  <strong>Your answer:</strong><br /> {answerText}
-                </p>
-
-                <button
-                  onClick={handleNext}
-                  disabled={submitting}
-                  className={`w-full px-6 py-3 rounded-lg font-bold transition-all ${
-                    submitting
-                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                      : isLastQuestion
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
-                >
-                  {submitting ? 'Processing...' : isLastQuestion ? 'Complete Interview' : 'Next Question'}
-                </button>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* Question Navigator */}

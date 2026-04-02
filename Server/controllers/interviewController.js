@@ -274,7 +274,6 @@ const completeInterview = async (req, res, next) => {
     next(error);
   }
 };
-
 /**
  * Get interview results/evaluation
  * GET /api/interviews/:id/result
