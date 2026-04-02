@@ -256,6 +256,13 @@ const completeInterview = async (req, res, next) => {
       message: "Interview completed successfully",
       data: {
         interviewId: interview._id,
+        jobRole: interview.jobRole,
+        experienceLevel: interview.experienceLevel,
+        interviewType: interview.interviewType,
+        difficultyLevel: interview.difficultyLevel,
+        numberOfQuestions: interview.numberOfQuestions,
+        questions: interview.questions,
+        answers: interview.answers,
         evaluation: interview.evaluation,
         adaptiveDifficulty: getAdaptiveDifficulty(
           finalEvaluation.score,
