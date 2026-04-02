@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useInterview } from '../hooks/useInterview';
 import { useNavigate } from 'react-router-dom';
+import SpeakButton from '../components/SpeakButton';
+import VoiceRecorder from '../components/VoiceRecorder';
+import { speakText } from '../utils/speechUtils';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
@@ -10,6 +13,8 @@ export default function InterviewScreen() {
   const [answerSubmitted, setAnswerSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [autoSpeakDone, setAutoSpeakDone] = useState(false);
 
   // Update local answer text when question changes
   useEffect(() => {
@@ -17,6 +22,30 @@ export default function InterviewScreen() {
     setTimeLeft(300);
     setAnswerSubmitted(false);
     setLocalError('');
+    setAutoSpeakDone(false);
+
+    // Auto-speak the question when it loads
+    if (currentInterview && currentInterview.questions[currentQuestionIndex]) {
+      const question = currentInterview.questions[currentQuestionIndex];
+      // Delay auto-speak slightly to avoid audio conflicts
+      const timer = setTimeout(() => {
+        speakText(question, {
+          rate: 0.9,
+          pitch: 1,
+          lang: 'en-US',
+          onEnd: () => setAutoSpeakDone(true),
+          onError: (error) => {
+            console.warn('Auto-speak failed:', error);
+            setAutoSpeakDone(true);
+          },
+        }).catch(err => {
+          console.warn('Could not auto-speak:', err);
+          setAutoSpeakDone(true);
+        });
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
   }, [currentQuestionIndex, currentAnswer]);
 
   // Timer effect
@@ -139,7 +168,10 @@ export default function InterviewScreen() {
           {/* Question Display */}
           <div className="bg-white rounded-lg shadow-lg p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Question {currentQuestionIndex + 1}</h2>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <h2 className="text-2xl font-bold text-gray-900">Question {currentQuestionIndex + 1}</h2>
+                <SpeakButton text={question} size="md" />
+              </div>
               <p className="text-lg text-gray-700 leading-relaxed">{question}</p>
             </div>
 
@@ -152,6 +184,17 @@ export default function InterviewScreen() {
                   placeholder="Type your answer here... (minimum 10 characters)"
                   className="w-full h-48 p-4 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none resize-none"
                   disabled={submitting}
+                />
+
+                {/* Voice Recorder */}
+                <VoiceRecorder
+                  onTranscript={(transcript) => {
+                    setAnswerText((prev) => prev + (prev ? ' ' : '') + transcript);
+                  }}
+                  onError={(error) => {
+                    setLocalError(error);
+                  }}
+                  autoInsert={true}
                 />
 
                 <div className="flex justify-between items-center">
