@@ -23,6 +23,7 @@ export default function InterviewScreen() {
   const [mediaStream, setMediaStream] = useState(null);
   const [showVideoPlayback, setShowVideoPlayback] = useState(false);
   const [recordedVideo, setRecordedVideo] = useState(null);
+  const [interviewCompleted, setInterviewCompleted] = useState(false);
 
   // Video recording refs
   const videoElementRef = useRef(null);
@@ -84,6 +85,21 @@ export default function InterviewScreen() {
     };
   }, []);
 
+  // Warn user before leaving page with unsaved progress
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      // Only warn if interview is in progress (not completed)
+      if (currentInterview && !submitting && !interviewCompleted) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure? Your unsaved answers will be lost.';
+        return 'Are you sure? Your unsaved answers will be lost.';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentInterview, submitting, interviewCompleted]);
+
   // Attach media stream to video element when it becomes available
   useEffect(() => {
     if (mediaStream && videoElementRef.current) {
@@ -96,11 +112,19 @@ export default function InterviewScreen() {
     }
   }, [mediaStream]);
 
+  // Redirect to home if no active interview after loading completes
+  useEffect(() => {
+    if (!loading && !currentInterview) {
+      console.log('No active interview, redirecting to home');
+      navigate('/');
+    }
+  }, [currentInterview, loading, navigate]);
+
   if (!currentInterview) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50">
         <div className="text-center">
-          <p className="text-gray-600 text-lg">No active interview. Please start one first.</p>
+          <p className="text-gray-600 text-lg">Redirecting to home...</p>
         </div>
       </div>
     );
@@ -182,6 +206,7 @@ export default function InterviewScreen() {
     setSubmitting(true);
     try {
       await completeInterview();
+      setInterviewCompleted(true);
       navigate('/interview-results');
     } catch (err) {
       setLocalError(err.response?.data?.error?.message || 'Failed to complete interview');
