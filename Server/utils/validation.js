@@ -21,7 +21,7 @@ const schemas = {
 
   startInterview: Joi.object({
     jobRole: Joi.string()
-      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .valid("frontend", "backend", "fullstack", "java", "python", "hr")
       .required(),
     experienceLevel: Joi.string()
       .valid("junior", "mid", "senior")
@@ -40,7 +40,7 @@ const schemas = {
 
   generateQuestions: Joi.object({
     jobRole: Joi.string()
-      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .valid("frontend", "backend", "fullstack", "java", "python", "hr")
       .required(),
     experienceLevel: Joi.string()
       .valid("junior", "mid", "senior")
@@ -71,7 +71,7 @@ const schemas = {
 
   createInterview: Joi.object({
     jobRole: Joi.string()
-      .valid("frontend", "backend", "fullstack", "java", "hr")
+      .valid("frontend", "backend", "fullstack", "java", "python", "hr")
       .required(),
     experienceLevel: Joi.string()
       .valid("junior", "mid", "senior")

@@ -16,8 +16,8 @@ export default function InterviewModeSelection() {
     { value: 'backend', label: 'Backend Developer', icon: '⚙️' },
     { value: 'fullstack', label: 'Full Stack', icon: '🔄' },
     { value: 'java', label: 'Java Developer', icon: '☕' },
+    { value: 'python', label: 'Python Developer', icon: '🐍' },
     { value: 'hr', label: 'HR Round', icon: '👥' },
-    { value: 'general', label: 'General Aptitude', icon: '🧠' },
   ];
 
   const interviewModes = [

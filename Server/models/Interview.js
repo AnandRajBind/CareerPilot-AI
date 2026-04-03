@@ -10,8 +10,8 @@ const interviewSchema = new mongoose.Schema(
     jobRole: {
       type: String,
       enum: {
-        values: ["frontend", "backend", "fullstack", "java", "hr"],
-        message: "Job role must be one of: frontend, backend, fullstack, java, hr",
+        values: ["frontend", "backend", "fullstack", "java", "python", "hr"],
+        message: "Job role must be one of: frontend, backend, fullstack, java, python, hr",
       },
       required: [true, "Please provide a job role"],
     },
