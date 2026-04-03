@@ -156,50 +156,9 @@ const Register = () => {
                 </button>
               </div>
 
-              {/* Password Strength Indicator */}
-              {password && (
-                <div className="mt-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-600">Password strength:</span>
-                    <span className={`text-xs font-semibold capitalize ${
-                      strength.color === 'bg-green-500' ? 'text-green-600' :
-                      strength.color === 'bg-blue-500' ? 'text-blue-600' :
-                      strength.color === 'bg-yellow-500' ? 'text-yellow-600' :
-                      'text-red-600'
-                    }`}>
-                      {strength.level}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${strength.color} transition-all`}
-                      style={{
-                        width: `${(password.length / 20) * 100}%`,
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password}</p>
               )}
-
-              {/* Password Requirements */}
-              <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-600 font-semibold mb-2">Password must have:</p>
-                <ul className="space-y-1 text-xs text-gray-600">
-                  <li className={`${password.length >= 6 ? 'text-green-600' : ''}`}>
-                    ✓ At least 6 characters
-                  </li>
-                  <li className={`${/[A-Z]/.test(password) ? 'text-green-600' : ''}`}>
-                    ✓ One uppercase letter
-                  </li>
-                  <li className={`${/[0-9]/.test(password) ? 'text-green-600' : ''}`}>
-                    ✓ One number
-                  </li>
-                </ul>
-              </div>
             </div>
 
             {/* Confirm Password */}
@@ -244,6 +203,47 @@ const Register = () => {
               {errors.confirmPassword && (
                 <p className="text-red-500 text-sm mt-1">{errors.confirmPassword}</p>
               )}
+            </div>
+
+            {/* Password Strength Indicator */}
+            {password && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-600">Password strength:</span>
+                  <span className={`text-xs font-semibold capitalize ${
+                    strength.color === 'bg-green-500' ? 'text-green-600' :
+                    strength.color === 'bg-blue-500' ? 'text-blue-600' :
+                    strength.color === 'bg-yellow-500' ? 'text-yellow-600' :
+                    'text-red-600'
+                  }`}>
+                    {strength.level}
+                  </span>
+                </div>
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${strength.color} transition-all`}
+                    style={{
+                      width: `${(password.length / 20) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+              </div>
+            )}
+
+            {/* Password Requirements */}
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <p className="text-xs text-gray-600 font-semibold mb-2">Password must have:</p>
+              <ul className="space-y-1 text-xs text-gray-600">
+                <li className={`${password.length >= 6 ? 'text-green-600' : ''}`}>
+                  ✓ At least 6 characters
+                </li>
+                <li className={`${/[A-Z]/.test(password) ? 'text-green-600' : ''}`}>
+                  ✓ One uppercase letter
+                </li>
+                <li className={`${/[0-9]/.test(password) ? 'text-green-600' : ''}`}>
+                  ✓ One number
+                </li>
+              </ul>
             </div>
 
             {/* Submit Button */}
