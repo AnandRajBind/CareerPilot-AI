@@ -8,6 +8,7 @@ import { speakText } from '../utils/speechUtils';
 import { isCameraSupported } from '../utils/videoUtils';
 import { Video } from 'lucide-react';
 import { useMedia } from '../context/MediaContext';
+import { useSecurityControls } from '../hooks/useSecurityControls';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function InterviewScreen() {
   const [interviewCompleted, setInterviewCompleted] = useState(false);
   const [streamWarning, setStreamWarning] = useState('');
   const [streamsOk, setStreamsOk] = useState(true);
+  const [securityToast, setSecurityToast] = useState('');
 
   // Video recording refs
   const videoElementRef = useRef(null);
@@ -99,6 +101,8 @@ export default function InterviewScreen() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentInterview, submitting, interviewCompleted]);
+
+  useSecurityControls(Boolean(currentInterview) && !interviewCompleted, setSecurityToast);
 
   useEffect(() => {
     if (!cameraStream || !screenStream) {
@@ -415,6 +419,12 @@ export default function InterviewScreen() {
             </div>
           )}
 
+          {securityToast && (
+            <div className="fixed top-24 right-6 z-50 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 shadow-lg">
+              {securityToast}
+            </div>
+          )}
+
           {streamWarning && (
             <div className="p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-lg flex items-center justify-between">
               <span>{streamWarning}</span>
@@ -449,7 +459,7 @@ export default function InterviewScreen() {
           )}
 
           {/* Question Display */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="bg-white rounded-lg shadow-lg p-8 select-none">
             <div className="mb-6">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <h2 className="text-2xl font-bold text-gray-900">Question {currentQuestionIndex + 1}</h2>
