@@ -6,7 +6,7 @@ import { useSystemCheck } from '../hooks/useSystemCheck'
 const SystemCheck = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { startInterview } = useInterview()
+  const { startInterview, currentInterview } = useInterview()
   const {
     cameraStream,
     screenStream,
@@ -39,10 +39,10 @@ const SystemCheck = () => {
   }, [internetStatus])
 
   useEffect(() => {
-    if (!interviewConfig) {
+    if (!interviewConfig && !currentInterview) {
       navigate('/interview-mode')
     }
-  }, [interviewConfig, navigate])
+  }, [interviewConfig, currentInterview, navigate])
 
   useEffect(() => {
     if (cameraStream && videoRef.current) {
@@ -77,7 +77,12 @@ const SystemCheck = () => {
   }
 
   const handleStartInterview = async () => {
-    if (!canStart || !interviewConfig) return
+    if (!canStart) return
+    if (currentInterview) {
+      navigate('/interview-screen')
+      return
+    }
+    if (!interviewConfig) return
 
     setIsStarting(true)
     setErrorMessage('')

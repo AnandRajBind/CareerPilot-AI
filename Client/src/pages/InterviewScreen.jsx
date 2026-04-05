@@ -29,6 +29,9 @@ export default function InterviewScreen() {
   const [proctoringMessage, setProctoringMessage] = useState('');
   const [proctoringCount, setProctoringCount] = useState(0);
   const [terminationMessage, setTerminationMessage] = useState('');
+  const screenStopPromptedRef = useRef(false);
+  const streamTerminationRef = useRef(false);
+  const allowMissingStreamsRef = useRef(false);
 
   const { streamsOk, warning: streamWarning } = useStreamMonitor({
     cameraStream,
@@ -132,10 +135,43 @@ export default function InterviewScreen() {
 
   useEffect(() => {
     if (!cameraStream || !screenStream) {
-      setStreamWarning('System check required. Please complete all checks before starting the interview.');
+      if (allowMissingStreamsRef.current) {
+        setLocalError('Please re-enable screen sharing to continue the interview.');
+        return;
+      }
+      setLocalError('System check required. Please complete all checks before starting the interview.');
       navigate('/system-check');
     }
   }, [cameraStream, screenStream, navigate]);
+
+  useEffect(() => {
+    if (!screenStream) return;
+    const track = screenStream.getVideoTracks()[0];
+    if (!track) return;
+
+    const handleEnded = () => {
+      if (interviewCompleted || streamTerminationRef.current || screenStopPromptedRef.current) return;
+      screenStopPromptedRef.current = true;
+      const confirmed = window.confirm(
+        'If you stop screen sharing, your interview will be terminated. Are you sure ?'
+      );
+      if (confirmed) {
+        streamTerminationRef.current = true;
+        setTerminationMessage('Screen sharing stopped. Interview terminated.');
+        setInterviewCompleted(true);
+        clearMedia();
+        navigate('/');
+      } else {
+        allowMissingStreamsRef.current = true;
+        setLocalError('Please re-enable screen sharing to continue the interview.');
+      }
+    };
+
+    track.addEventListener('ended', handleEnded);
+    return () => {
+      track.removeEventListener('ended', handleEnded);
+    };
+  }, [screenStream, interviewCompleted, clearMedia, navigate]);
 
   useEffect(() => {
     if (cameraStream && systemCameraRef.current) {
