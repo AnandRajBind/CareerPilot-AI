@@ -10,6 +10,7 @@ import { Video } from 'lucide-react';
 import { useMedia } from '../context/MediaContext';
 import { useSecurityControls } from '../hooks/useSecurityControls';
 import { useProctoringMonitor } from '../hooks/useProctoringMonitor';
+import { useStreamMonitor } from '../hooks/useStreamMonitor';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
@@ -24,12 +25,16 @@ export default function InterviewScreen() {
   const [showVideoPlayback, setShowVideoPlayback] = useState(false);
   const [recordedVideo, setRecordedVideo] = useState(null);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
-  const [streamWarning, setStreamWarning] = useState('');
-  const [streamsOk, setStreamsOk] = useState(true);
   const [securityToast, setSecurityToast] = useState('');
   const [proctoringMessage, setProctoringMessage] = useState('');
   const [proctoringCount, setProctoringCount] = useState(0);
   const [terminationMessage, setTerminationMessage] = useState('');
+
+  const { streamsOk, warning: streamWarning } = useStreamMonitor({
+    cameraStream,
+    screenStream,
+    microphoneTrack,
+  });
 
   // Video recording refs
   const videoElementRef = useRef(null);
@@ -146,29 +151,6 @@ export default function InterviewScreen() {
     }
   }, [screenStream]);
 
-  useEffect(() => {
-    if (!cameraStream || !screenStream || !microphoneTrack) return;
-
-    const checkStreams = () => {
-      const cameraTrack = cameraStream.getVideoTracks()[0];
-      const screenTrack = screenStream.getVideoTracks()[0];
-      const cameraOk = cameraTrack && cameraTrack.readyState === 'live' && cameraTrack.enabled;
-      const screenOk = screenTrack && screenTrack.readyState === 'live' && screenTrack.enabled;
-      const micOk = microphoneTrack.readyState === 'live' && microphoneTrack.enabled;
-
-      if (cameraOk && screenOk && micOk) {
-        setStreamsOk(true);
-        setStreamWarning('');
-      } else {
-        setStreamsOk(false);
-        setStreamWarning('Camera or screen sharing lost. Please return to System Check.');
-      }
-    };
-
-    checkStreams();
-    const interval = setInterval(checkStreams, 3000);
-    return () => clearInterval(interval);
-  }, [cameraStream, screenStream, microphoneTrack]);
 
   // Attach media stream to video element when it becomes available
   useEffect(() => {
