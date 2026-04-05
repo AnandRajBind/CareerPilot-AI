@@ -9,6 +9,7 @@ import { isCameraSupported } from '../utils/videoUtils';
 import { Video } from 'lucide-react';
 import { useMedia } from '../context/MediaContext';
 import { useSecurityControls } from '../hooks/useSecurityControls';
+import { useProctoringMonitor } from '../hooks/useProctoringMonitor';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
@@ -26,6 +27,9 @@ export default function InterviewScreen() {
   const [streamWarning, setStreamWarning] = useState('');
   const [streamsOk, setStreamsOk] = useState(true);
   const [securityToast, setSecurityToast] = useState('');
+  const [proctoringMessage, setProctoringMessage] = useState('');
+  const [proctoringCount, setProctoringCount] = useState(0);
+  const [terminationMessage, setTerminationMessage] = useState('');
 
   // Video recording refs
   const videoElementRef = useRef(null);
@@ -103,6 +107,23 @@ export default function InterviewScreen() {
   }, [currentInterview, submitting, interviewCompleted]);
 
   useSecurityControls(Boolean(currentInterview) && !interviewCompleted, setSecurityToast);
+  useProctoringMonitor({
+    enabled: Boolean(currentInterview) && !interviewCompleted,
+    onWarning: (count, message) => {
+      setProctoringCount(count);
+      setProctoringMessage(message);
+    },
+    onTerminate: (message) => {
+      setProctoringCount(3);
+      setProctoringMessage(message);
+      setTerminationMessage('Aapne 3 baar cheating ka try kiya. Isliye hum aapka interview terminate kar rahe hain.');
+      setInterviewCompleted(true);
+      setTimeout(() => {
+        clearMedia();
+        navigate('/');
+      }, 10000);
+    },
+  });
 
   useEffect(() => {
     if (!cameraStream || !screenStream) {
@@ -422,6 +443,22 @@ export default function InterviewScreen() {
           {securityToast && (
             <div className="fixed top-24 right-6 z-50 rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 shadow-lg">
               {securityToast}
+            </div>
+          )}
+
+          {proctoringMessage && (
+            <div className="fixed top-24 left-6 z-50 max-w-sm rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg">
+              <div className="font-semibold">Warning {proctoringCount}/3</div>
+              <div className="mt-1">{proctoringMessage}</div>
+            </div>
+          )}
+
+          {terminationMessage && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+                <h3 className="text-xl font-semibold text-red-700">Interview Terminated</h3>
+                <p className="mt-2 text-sm text-gray-700">{terminationMessage}</p>
+              </div>
             </div>
           )}
 
