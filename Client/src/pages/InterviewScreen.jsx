@@ -3,39 +3,40 @@ import { useInterview } from '../hooks/useInterview';
 import { useNavigate } from 'react-router-dom';
 import SpeakButton from '../components/SpeakButton';
 import VoiceRecorder from '../components/VoiceRecorder';
-import VideoCamera from '../components/VideoCamera';
-import VideoRecorder from '../components/VideoRecorder';
 import VideoPlayback from '../components/VideoPlayback';
 import { speakText } from '../utils/speechUtils';
 import { isCameraSupported } from '../utils/videoUtils';
 import { Video } from 'lucide-react';
+import { useMedia } from '../context/MediaContext';
 
 export default function InterviewScreen() {
   const navigate = useNavigate();
   const { currentInterview, currentQuestionIndex, currentAnswer, submitAnswer, loading, error, isLastQuestion, progressPercentage, goToQuestion, completeInterview, answers } = useInterview();
+  const { cameraStream, screenStream, microphoneTrack, clearMedia } = useMedia();
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes per question
   const [answerText, setAnswerText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
-  const [autoSpeakDone, setAutoSpeakDone] = useState(false);
   const [enableVideo, setEnableVideo] = useState(false);
   const [mediaStream, setMediaStream] = useState(null);
   const [showVideoPlayback, setShowVideoPlayback] = useState(false);
   const [recordedVideo, setRecordedVideo] = useState(null);
   const [interviewCompleted, setInterviewCompleted] = useState(false);
+  const [streamWarning, setStreamWarning] = useState('');
+  const [streamsOk, setStreamsOk] = useState(true);
 
   // Video recording refs
   const videoElementRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const systemCameraRef = useRef(null);
+  const systemScreenRef = useRef(null);
 
   // Update local answer text when question changes
   useEffect(() => {
     setAnswerText(currentAnswer || '');
     setTimeLeft(300);
     setLocalError('');
-    setAutoSpeakDone(false);
 
     // Auto-speak the question when it loads
     if (currentInterview && currentInterview.questions[currentQuestionIndex]) {
@@ -46,14 +47,12 @@ export default function InterviewScreen() {
           rate: 0.9,
           pitch: 1,
           lang: 'en-US',
-          onEnd: () => setAutoSpeakDone(true),
+          onEnd: () => {},
           onError: (error) => {
             console.warn('Auto-speak failed:', error);
-            setAutoSpeakDone(true);
           },
         }).catch(err => {
           console.warn('Could not auto-speak:', err);
-          setAutoSpeakDone(true);
         });
       }, 500);
 
@@ -63,6 +62,9 @@ export default function InterviewScreen() {
 
   // Timer effect - auto move to next question when time runs out
   useEffect(() => {
+    if (!streamsOk) {
+      return;
+    }
     if (timeLeft <= 0) {
       handleAutoNext();
       return;
@@ -73,15 +75,13 @@ export default function InterviewScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeLeft]);
+  }, [timeLeft, streamsOk]);
 
   // Cleanup video only on component unmount (not on question change)
   useEffect(() => {
     return () => {
       // Only stop video when leaving the interview screen completely
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-      }
+      setMediaStream(null);
     };
   }, []);
 
@@ -99,6 +99,51 @@ export default function InterviewScreen() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [currentInterview, submitting, interviewCompleted]);
+
+  useEffect(() => {
+    if (!cameraStream || !screenStream) {
+      setStreamWarning('System check required. Please complete all checks before starting the interview.');
+      navigate('/system-check');
+    }
+  }, [cameraStream, screenStream, navigate]);
+
+  useEffect(() => {
+    if (cameraStream && systemCameraRef.current) {
+      systemCameraRef.current.srcObject = cameraStream;
+      systemCameraRef.current.play().catch(() => {});
+    }
+  }, [cameraStream]);
+
+  useEffect(() => {
+    if (screenStream && systemScreenRef.current) {
+      systemScreenRef.current.srcObject = screenStream;
+      systemScreenRef.current.play().catch(() => {});
+    }
+  }, [screenStream]);
+
+  useEffect(() => {
+    if (!cameraStream || !screenStream || !microphoneTrack) return;
+
+    const checkStreams = () => {
+      const cameraTrack = cameraStream.getVideoTracks()[0];
+      const screenTrack = screenStream.getVideoTracks()[0];
+      const cameraOk = cameraTrack && cameraTrack.readyState === 'live' && cameraTrack.enabled;
+      const screenOk = screenTrack && screenTrack.readyState === 'live' && screenTrack.enabled;
+      const micOk = microphoneTrack.readyState === 'live' && microphoneTrack.enabled;
+
+      if (cameraOk && screenOk && micOk) {
+        setStreamsOk(true);
+        setStreamWarning('');
+      } else {
+        setStreamsOk(false);
+        setStreamWarning('Camera or screen sharing lost. Please return to System Check.');
+      }
+    };
+
+    checkStreams();
+    const interval = setInterval(checkStreams, 3000);
+    return () => clearInterval(interval);
+  }, [cameraStream, screenStream, microphoneTrack]);
 
   // Attach media stream to video element when it becomes available
   useEffect(() => {
@@ -207,6 +252,7 @@ export default function InterviewScreen() {
     try {
       await completeInterview();
       setInterviewCompleted(true);
+      clearMedia();
       navigate('/interview-results');
     } catch (err) {
       setLocalError(err.response?.data?.error?.message || 'Failed to complete interview');
@@ -236,17 +282,20 @@ export default function InterviewScreen() {
   const startVideoRecording = async () => {
     try {
       console.log('Starting video recording...');
-      const constraints = {
-        video: { 
-          width: { ideal: 1280 }, 
-          height: { ideal: 720 },
-          facingMode: 'user'
-        },
-        audio: true
-      };
-      
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      console.log('Media stream obtained:', stream);
+      if (!cameraStream) {
+        setLocalError('Camera stream is not available. Please complete the system check again.');
+        return;
+      }
+
+      const tracks = [...cameraStream.getVideoTracks()];
+      if (microphoneTrack) {
+        tracks.push(microphoneTrack);
+      } else if (cameraStream.getAudioTracks().length > 0) {
+        tracks.push(...cameraStream.getAudioTracks());
+      }
+
+      const stream = new MediaStream(tracks);
+      console.log('Using existing media stream for recording:', stream);
       
       // Set enableVideo to true FIRST so the video element is rendered
       setEnableVideo(true);
@@ -304,11 +353,7 @@ export default function InterviewScreen() {
       mediaRecorderRef.current.stop();
     }
 
-    // Stop all tracks
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(track => track.stop());
-      setMediaStream(null);
-    }
+    setMediaStream(null);
     setEnableVideo(false);
   };
 
@@ -368,6 +413,39 @@ export default function InterviewScreen() {
             <div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
               {localError || error}
             </div>
+          )}
+
+          {streamWarning && (
+            <div className="p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-lg flex items-center justify-between">
+              <span>{streamWarning}</span>
+              <button
+                type="button"
+                onClick={() => navigate('/system-check')}
+                className="ml-4 rounded-md border border-yellow-400 px-3 py-1 text-sm font-semibold text-yellow-800 hover:bg-yellow-100"
+              >
+                Recheck System
+              </button>
+            </div>
+          )}
+
+          {cameraStream && (
+            <video
+              ref={systemCameraRef}
+              autoPlay
+              muted
+              playsInline
+              className="hidden"
+            />
+          )}
+
+          {screenStream && (
+            <video
+              ref={systemScreenRef}
+              autoPlay
+              muted
+              playsInline
+              className="hidden"
+            />
           )}
 
           {/* Question Display */}
@@ -465,9 +543,9 @@ export default function InterviewScreen() {
                   )}
                   <button
                     onClick={handleNext}
-                    disabled={submitting || answerText.trim().length < 10}
+                    disabled={submitting || !streamsOk || answerText.trim().length < 10}
                     className={`px-8 py-3 rounded-lg font-bold transition-all ${
-                      submitting || answerText.trim().length < 10
+                      submitting || !streamsOk || answerText.trim().length < 10
                         ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                         : isLastQuestion
                         ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg'

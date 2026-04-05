@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useInterview } from '../hooks/useInterview';
 
 export default function InterviewModeSelection() {
   const navigate = useNavigate();
-  const { startInterview, loading, error } = useInterview();
   const [selectedMode, setSelectedMode] = useState(null);
   const [jobRole, setJobRole] = useState('');
   const [experienceLevel, setExperienceLevel] = useState('');
@@ -39,8 +37,15 @@ export default function InterviewModeSelection() {
     }
 
     try {
-      await startInterview(jobRole, experienceLevel, selectedMode, difficultyLevel, numberOfQuestions);
-      navigate('/interview-screen');
+      navigate('/system-check', {
+        state: {
+          jobRole,
+          experienceLevel,
+          interviewType: selectedMode,
+          difficultyLevel,
+          numberOfQuestions,
+        },
+      });
     } catch (err) {
       console.error('Failed to start interview:', err);
     }
@@ -54,12 +59,6 @@ export default function InterviewModeSelection() {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Start Your Interview</h1>
           <p className="text-lg text-gray-600">Configure your interview settings and get ready to ace it!</p>
         </div>
-
-        {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
 
         <div className="space-y-8">
           {/* Job Role Selection */}
@@ -175,14 +174,14 @@ export default function InterviewModeSelection() {
           {/* Start Button */}
           <button
             onClick={handleStartInterview}
-            disabled={loading || !jobRole || !selectedMode || !experienceLevel || !difficultyLevel}
+            disabled={!jobRole || !selectedMode || !experienceLevel || !difficultyLevel}
             className={`w-full py-4 rounded-lg font-bold text-lg transition-all ${
-              loading || !jobRole || !selectedMode || !experienceLevel || !difficultyLevel
+              !jobRole || !selectedMode || !experienceLevel || !difficultyLevel
                 ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                 : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg hover:scale-105'
             }`}
           >
-            {loading ? 'Starting Interview...' : 'Start Interview'}
+            Start Interview
           </button>
         </div>
       </div>
