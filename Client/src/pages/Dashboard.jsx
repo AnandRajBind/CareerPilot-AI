@@ -11,7 +11,7 @@ import StatsCard from '../components/StatsCard'
 import { TrendingUp, Clock, Target, Award } from 'lucide-react'
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const { company } = useAuth()
   const { resetInterview } = useInterview()
   const [searchParams] = useSearchParams()
   const [interviews, setInterviews] = useState([])
@@ -22,6 +22,10 @@ export default function Dashboard() {
     const tabParam = searchParams.get('tab')
     return tabParam || 'overview'
   })
+
+  const trialStatus = localStorage.getItem('trialStatus')
+    ? JSON.parse(localStorage.getItem('trialStatus'))
+    : null
 
   useEffect(() => {
     const fetchInterviews = async () => {
@@ -39,10 +43,10 @@ export default function Dashboard() {
       }
     }
 
-    if (user) {
+    if (company) {
       fetchInterviews()
     }
-  }, [user])
+  }, [company])
 
   // Calculate statistics
   const calculateStats = () => {
@@ -147,9 +151,16 @@ export default function Dashboard() {
           <div className="flex justify-between items-start mb-8">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900">
-                Performance Dashboard
+                {company?.companyName}
               </h1>
-              <p className="text-gray-600 mt-2">Track your interview progress and improvement</p>
+              <p className="text-gray-600 mt-2">Interview Management Dashboard</p>
+              {trialStatus?.isActive && (
+                <div className="mt-3 inline-block px-4 py-2 bg-green-100 border border-green-400 rounded-lg">
+                  <p className="text-green-700 font-semibold text-sm">
+                    ✅ Free Trial Active - {trialStatus?.daysRemaining} days remaining
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -208,7 +219,7 @@ export default function Dashboard() {
         {/* Tab Content */}
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
           {activeTab === 'overview' && (
-            <OverviewSection user={user} stats={stats} interviews={interviews} />
+            <OverviewSection company={company} stats={stats} interviews={interviews} />
           )}
 
           {activeTab === 'analytics' && (
@@ -221,8 +232,8 @@ export default function Dashboard() {
             <InterviewHistory interviews={interviews} loading={loading} />
           )}
 
-          {activeTab === 'profile' && user && (
-            <ProfileSection user={user} stats={stats} />
+          {activeTab === 'profile' && company && (
+            <ProfileSection company={company} stats={stats} />
           )}
         </div>
 

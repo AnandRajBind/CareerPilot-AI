@@ -10,7 +10,7 @@ export default function InterviewResults() {
   const [selectedTab, setSelectedTab] = useState('overview');
 
   useEffect(() => {
-    if (!results) {
+    if (!results) {k
       navigate('/interview-mode');
     }
   }, [results, navigate]);

@@ -1,18 +1,18 @@
-const User = require("../models/User");
+const Company = require("../models/User");
 const { buildError } = require("../utils/errorBuilder");
 
 const getProfile = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id);
+    const company = await Company.findById(req.company._id);
 
-    if (!user) {
-      return next(buildError("User not found", 404));
+    if (!company) {
+      return next(buildError("Company not found", 404));
     }
 
     res.status(200).json({
       success: true,
       data: {
-        user: user.toJSON(),
+        company: company.toJSON(),
       },
     });
   } catch (error) {
@@ -22,29 +22,29 @@ const getProfile = async (req, res, next) => {
 
 const updateProfile = async (req, res, next) => {
   try {
-    const { name } = req.body;
+    const { name, companyName, industry } = req.body;
 
-    if (!name) {
-      return next(buildError("Please provide name to update", 400));
+    if (!name || !companyName) {
+      return next(buildError("Please provide name and company name", 400));
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.user._id,
-      { name },
+    const company = await Company.findByIdAndUpdate(
+      req.company._id,
+      { name, companyName, industry },
       {
         new: true,
         runValidators: true,
       }
     );
 
-    if (!user) {
-      return next(buildError("User not found", 404));
+    if (!company) {
+      return next(buildError("Company not found", 404));
     }
 
     res.status(200).json({
       success: true,
       data: {
-        user: user.toJSON(),
+        company: company.toJSON(),
       },
     });
   } catch (error) {
@@ -54,15 +54,15 @@ const updateProfile = async (req, res, next) => {
 
 const deleteProfile = async (req, res, next) => {
   try {
-    const user = await User.findByIdAndDelete(req.user._id);
+    const company = await Company.findByIdAndDelete(req.company._id);
 
-    if (!user) {
-      return next(buildError("User not found", 404));
+    if (!company) {
+      return next(buildError("Company not found", 404));
     }
 
     res.status(200).json({
       success: true,
-      message: "User profile deleted successfully",
+      message: "Company profile deleted successfully",
     });
   } catch (error) {
     next(error);

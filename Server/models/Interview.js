@@ -2,10 +2,10 @@ const mongoose = require("mongoose");
 
 const interviewSchema = new mongoose.Schema(
   {
-    userId: {
+    companyId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "Please provide a user ID"],
+      ref: "Company",
+      required: [true, "Please provide a company ID"],
     },
     jobRole: {
       type: String,
@@ -107,7 +107,7 @@ const interviewSchema = new mongoose.Schema(
 );
 
 // Index for faster queries
-interviewSchema.index({ userId: 1, createdAt: -1 });
+interviewSchema.index({ companyId: 1, createdAt: -1 });
 interviewSchema.index({ jobRole: 1 });
 interviewSchema.index({ status: 1 });
 

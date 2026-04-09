@@ -1,7 +1,7 @@
 import React from 'react'
 import { TrendingUp, Target, Award, Zap } from 'lucide-react'
 
-export default function OverviewSection({ user, stats, interviews }) {
+export default function OverviewSection({ company, stats, interviews }) {
   // Safety checks
   const statsObj = stats || {
     totalInterviews: 0,
@@ -33,12 +33,12 @@ export default function OverviewSection({ user, stats, interviews }) {
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-8 border-2 border-indigo-200">
         <h2 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user?.name?.split(' ')[0]}! 👋
+          Welcome to {company?.companyName}! 👋
         </h2>
         <p className="text-gray-600 mb-4">
           {statsObj.totalInterviews === 0
-            ? "Start your first interview to begin tracking your progress"
-            : `You've completed ${completedInterviews.length} interview${completedInterviews.length !== 1 ? 's' : ''}. Keep up the great work!`}
+            ? "Start your first interview to begin tracking your company's progress"
+            : `Your company has completed ${completedInterviews.length} interview${completedInterviews.length !== 1 ? 's' : ''}. Keep up the great work!`}
         </p>
       </div>
 

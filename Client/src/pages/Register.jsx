@@ -8,8 +8,11 @@ const Register = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [industry, setIndustry] = useState('')
   const [errors, setErrors] = useState({})
   const [apiError, setApiError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -21,6 +24,7 @@ const Register = () => {
     e.preventDefault()
     setErrors({})
     setApiError('')
+    setSuccessMessage('')
 
     // Check if passwords match
     if (password !== confirmPassword) {
@@ -34,6 +38,8 @@ const Register = () => {
       email,
       password,
       confirmPassword,
+      companyName,
+      industry,
     })
     if (!validation.success) {
       setErrors(validation.errors)
@@ -42,10 +48,20 @@ const Register = () => {
 
     setIsLoading(true)
     try {
-      const result = await register(name, email, password, confirmPassword)
+      const result = await register(name, email, password, confirmPassword, companyName, industry)
 
       if (result.success) {
-        navigate('/')
+        setSuccessMessage('Your 3-day trial has started. Redirecting to login...')
+        // Clear form
+        setName('')
+        setEmail('')
+        setPassword('')
+        setConfirmPassword('')
+        setCompanyName('')
+        setIndustry('')
+        
+        // Redirect after 2 seconds
+        setTimeout(() => navigate('/login'), 2000)
       } else {
         setApiError(result.error || 'Registration failed. Please try again.')
       }
@@ -92,6 +108,13 @@ const Register = () => {
             </div>
           )}
 
+          {/* Success Alert */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-700 text-sm">{successMessage}</p>
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name */}
@@ -129,6 +152,51 @@ const Register = () => {
               />
               {errors.email && (
                 <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Company name
+              </label>
+              <input
+                type="text"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
+                  errors.companyName ? 'border-red-500' : 'border-gray-300'
+                }`}
+                placeholder="TechCorp Inc"
+              />
+              {errors.companyName && (
+                <p className="text-red-500 text-sm mt-1">{errors.companyName}</p>
+              )}
+            </div>
+
+            {/* Industry */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Industry
+              </label>
+              <select
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
+                  errors.industry ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select an industry</option>
+                <option value="technology">Technology</option>
+                <option value="finance">Finance</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="retail">Retail</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="education">Education</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.industry && (
+                <p className="text-red-500 text-sm mt-1">{errors.industry}</p>
               )}
             </div>
 

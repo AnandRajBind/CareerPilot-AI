@@ -7,6 +7,8 @@ export const authService = {
       email: data.email,
       password: data.password,
       confirmPassword: data.confirmPassword,
+      companyName: data.companyName,
+      industry: data.industry,
     })
     return response.data
   },

@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 const bcryptjs = require("bcryptjs");
 
-const userSchema = new mongoose.Schema(
+const companySchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Please provide a name"],
+      required: [true, "Please provide contact person name"],
       trim: true,
       maxlength: [100, "Name cannot exceed 100 characters"],
     },
@@ -25,6 +25,40 @@ const userSchema = new mongoose.Schema(
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
     },
+    companyName: {
+      type: String,
+      required: [true, "Please provide company name"],
+      trim: true,
+      maxlength: [150, "Company name cannot exceed 150 characters"],
+    },
+    industry: {
+      type: String,
+      required: [true, "Please provide industry"],
+      enum: {
+        values: ["technology", "finance", "healthcare", "retail", "manufacturing", "education", "other"],
+        message: "Industry must be one of: technology, finance, healthcare, retail, manufacturing, education, other",
+      },
+    },
+    plan: {
+      type: String,
+      enum: {
+        values: ["free", "starter", "professional", "enterprise"],
+        message: "Plan must be one of: free, starter, professional, enterprise",
+      },
+      default: "free",
+    },
+    trialStartDate: {
+      type: Date,
+      default: Date.now,
+    },
+    trialEndDate: {
+      type: Date,
+      default: () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+    },
+    isTrialActive: {
+      type: Boolean,
+      default: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -34,7 +68,7 @@ const userSchema = new mongoose.Schema(
 );
 
 // Hash password before saving
-userSchema.pre("save", async function (next) {
+companySchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
   try {
@@ -47,15 +81,24 @@ userSchema.pre("save", async function (next) {
 });
 
 // Method to compare password
-userSchema.methods.matchPassword = async function (enteredPassword) {
+companySchema.methods.matchPassword = async function (enteredPassword) {
   return await bcryptjs.compare(enteredPassword, this.password);
 };
 
-// Method to return user without password
-userSchema.methods.toJSON = function () {
+// Method to check if trial is still active
+companySchema.methods.isTrialValid = function () {
+  return this.isTrialActive && new Date() < this.trialEndDate;
+};
+
+// Method to return company without password
+companySchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   return obj;
 };
 
-module.exports = mongoose.model("User", userSchema);
+// Indexes for faster queries
+companySchema.index({ email: 1 });
+companySchema.index({ createdAt: -1 });
+
+module.exports = mongoose.model("Company", companySchema);

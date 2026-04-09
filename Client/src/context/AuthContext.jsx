@@ -4,36 +4,36 @@ import { authService } from '../services/authService'
 export const AuthContext = createContext()
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
+  const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   // Initialize auth state from localStorage
   useEffect(() => {
-    const storedUser = localStorage.getItem('user')
+    const storedCompany = localStorage.getItem('company')
     const token = localStorage.getItem('token')
 
-    if (storedUser && token) {
+    if (storedCompany && token) {
       try {
-        setUser(JSON.parse(storedUser))
+        setCompany(JSON.parse(storedCompany))
       } catch (err) {
-        localStorage.removeItem('user')
+        localStorage.removeItem('company')
         localStorage.removeItem('token')
       }
     }
     setLoading(false)
   }, [])
 
-  const register = useCallback(async (name, email, password, confirmPassword) => {
+  const register = useCallback(async (name, email, password, confirmPassword, companyName, industry) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await authService.register({ name, email, password, confirmPassword })
+      const response = await authService.register({ name, email, password, confirmPassword, companyName, industry })
       const { data } = response
 
       localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
-      setUser(data)
+      localStorage.setItem('company', JSON.stringify(data.company))
+      setCompany(data.company)
 
       return { success: true, data }
     } catch (err) {
@@ -53,8 +53,9 @@ export const AuthProvider = ({ children }) => {
       const { data } = response
 
       localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data))
-      setUser(data)
+      localStorage.setItem('company', JSON.stringify(data.company))
+      localStorage.setItem('trialStatus', JSON.stringify(data.trialStatus || {}))
+      setCompany(data.company)
 
       return { success: true, data }
     } catch (err) {
@@ -68,17 +69,18 @@ export const AuthProvider = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setUser(null)
+    localStorage.removeItem('company')
+    localStorage.removeItem('trialStatus')
+    setCompany(null)
     setError(null)
   }, [])
 
-  const isAuthenticated = !!user
+  const isAuthenticated = !!company
 
   return (
     <AuthContext.Provider
       value={{
-        user,
+        company,
         loading,
         error,
         register,

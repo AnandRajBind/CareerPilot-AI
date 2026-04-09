@@ -1,7 +1,7 @@
 import React from 'react'
 import { User, Mail, Calendar, Trophy, Target, TrendingUp } from 'lucide-react'
 
-export default function ProfileSection({ user, stats }) {
+export default function ProfileSection({ company, stats }) {
   // Safety check: ensure stats is an object with default values
   const statsObj = stats || {
     totalInterviews: 0,
@@ -11,8 +11,8 @@ export default function ProfileSection({ user, stats }) {
     roleStats: {},
   }
 
-  const joinDate = user?.createdAt 
-    ? new Date(user.createdAt).toLocaleDateString('en-US', {
+  const joinDate = company?.createdAt 
+    ? new Date(company.createdAt).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
@@ -33,23 +33,27 @@ export default function ProfileSection({ user, stats }) {
 
   return (
     <div className="space-y-8">
-      {/* User Profile Card */}
+      {/* Company Profile Card */}
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-8 border-2 border-indigo-200">
         <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
           {/* Avatar */}
           <div className="flex-shrink-0">
             <div className="w-24 h-24 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white text-4xl font-bold">
-              {user?.name?.charAt(0).toUpperCase()}
+              {company?.companyName?.charAt(0).toUpperCase()}
             </div>
           </div>
 
-          {/* User Info */}
+          {/* Company Info */}
           <div className="flex-grow text-center md:text-left">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">{user?.name}</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">{company?.companyName}</h2>
             <div className="space-y-2 text-gray-700">
               <div className="flex items-center gap-2 justify-center md:justify-start">
                 <Mail className="w-5 h-5 text-indigo-600" />
-                <span>{user?.email}</span>
+                <span>{company?.email}</span>
+              </div>
+              <div className="flex items-center gap-2 justify-center md:justify-start">
+                <User className="w-5 h-5 text-indigo-600" />
+                <span className="capitalize">{company?.industry}</span>
               </div>
               <div className="flex items-center gap-2 justify-center md:justify-start">
                 <Calendar className="w-5 h-5 text-indigo-600" />

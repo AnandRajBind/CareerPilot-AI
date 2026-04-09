@@ -32,7 +32,7 @@ const startInterview = async (req, res, next) => {
 
     // Create interview record
     const interview = new Interview({
-      userId: req.user._id,
+      companyId: req.company._id,
       jobRole,
       experienceLevel,
       interviewType,
@@ -104,14 +104,14 @@ const evaluateAnswerSubmission = async (req, res, next) => {
     const { id } = req.params;
     const { answer, questionIndex } = req.validatedBody;
 
-    // Validate interview exists and belongs to user
+    // Validate interview exists and belongs to company
     const interview = await Interview.findById(id);
 
     if (!interview) {
       return next(buildError("Interview not found", 404));
     }
 
-    if (interview.userId.toString() !== req.user._id.toString()) {
+    if (interview.companyId.toString() !== req.company._id.toString()) {
       return next(
         buildError("Not authorized to access this interview", 403)
       );
@@ -187,7 +187,7 @@ const completeInterview = async (req, res, next) => {
       return next(buildError("Interview not found", 404));
     }
 
-    if (interview.userId.toString() !== req.user._id.toString()) {
+    if (interview.companyId.toString() !== req.company._id.toString()) {
       return next(
         buildError("Not authorized to access this interview", 403)
       );
@@ -283,7 +283,7 @@ const getInterviewResult = async (req, res, next) => {
     const { id } = req.params;
 
     const interview = await Interview.findById(id).populate(
-      "userId",
+      "companyId",
       "name email"
     );
 
@@ -291,7 +291,7 @@ const getInterviewResult = async (req, res, next) => {
       return next(buildError("Interview not found", 404));
     }
 
-    if (interview.userId._id.toString() !== req.user._id.toString()) {
+    if (interview.companyId._id.toString() !== req.company._id.toString()) {
       return next(
         buildError("Not authorized to access this interview", 403)
       );
@@ -338,7 +338,7 @@ const getInterviews = async (req, res, next) => {
   try {
     const { page = 1, limit = 10, status, jobRole } = req.query;
 
-    const filter = { userId: req.user._id };
+    const filter = { companyId: req.company._id };
     if (status) filter.status = status;
     if (jobRole) filter.jobRole = jobRole;
 
@@ -378,7 +378,7 @@ const getInterviewById = async (req, res, next) => {
     const { id } = req.params;
 
     const interview = await Interview.findById(id).populate(
-      "userId",
+      "companyId",
       "name email"
     );
 
@@ -386,7 +386,7 @@ const getInterviewById = async (req, res, next) => {
       return next(buildError("Interview not found", 404));
     }
 
-    if (interview.userId._id.toString() !== req.user._id.toString()) {
+    if (interview.companyId._id.toString() !== req.company._id.toString()) {
       return next(
         buildError("Not authorized to access this interview", 403)
       );
@@ -417,7 +417,7 @@ const deleteInterview = async (req, res, next) => {
       return next(buildError("Interview not found", 404));
     }
 
-    if (interview.userId.toString() !== req.user._id.toString()) {
+    if (interview.companyId.toString() !== req.company._id.toString()) {
       return next(buildError("Not authorized to delete this interview", 403));
     }
 

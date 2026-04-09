@@ -14,7 +14,7 @@ export const loginSchema = z.object({
 export const registerSchema = z.object({
   name: z
     .string()
-    .min(1, 'Name is required')
+    .min(1, 'Contact name is required')
     .min(2, 'Name must be at least 2 characters'),
   email: z
     .string()
@@ -29,6 +29,18 @@ export const registerSchema = z.object({
   confirmPassword: z
     .string()
     .min(1, 'Confirm password is required'),
+  companyName: z
+    .string()
+    .min(1, 'Company name is required')
+    .min(2, 'Company name must be at least 2 characters')
+    .max(150, 'Company name must not exceed 150 characters'),
+  industry: z
+    .string()
+    .min(1, 'Industry is required')
+    .refine(
+      (val) => ['technology', 'finance', 'healthcare', 'retail', 'manufacturing', 'education', 'other'].includes(val),
+      'Please select a valid industry'
+    ),
 })
 
 export const validateForm = (schema, data) => {

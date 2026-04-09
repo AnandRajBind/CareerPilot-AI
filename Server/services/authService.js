@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const Company = require("../models/User");
 const { buildError } = require("../utils/errorBuilder");
 
 const generateToken = (id) => {
@@ -8,21 +8,31 @@ const generateToken = (id) => {
   });
 };
 
-const register = async (name, email, password) => {
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    throw buildError("User with this email already exists", 400);
+const register = async (name, email, password, companyName, industry) => {
+  const companyExists = await Company.findOne({ email });
+  if (companyExists) {
+    throw buildError("Company with this email already exists", 400);
   }
 
-  const user = await User.create({
+  // Auto-calculate 3-day trial
+  const trialStartDate = new Date();
+  const trialEndDate = new Date(trialStartDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+  const company = await Company.create({
     name,
     email,
     password,
+    companyName,
+    industry,
+    plan: "free",
+    trialStartDate,
+    trialEndDate,
+    isTrialActive: true,
   });
 
-  const token = generateToken(user._id);
+  const token = generateToken(company._id);
   return {
-    user: user.toJSON(),
+    company: company.toJSON(),
     token,
   };
 };
@@ -32,19 +42,19 @@ const login = async (email, password) => {
     throw buildError("Please provide email and password", 400);
   }
 
-  const user = await User.findOne({ email }).select("+password");
-  if (!user) {
+  const company = await Company.findOne({ email }).select("+password");
+  if (!company) {
     throw buildError("Invalid credentials", 401);
   }
 
-  const isPasswordMatch = await user.matchPassword(password);
+  const isPasswordMatch = await company.matchPassword(password);
   if (!isPasswordMatch) {
     throw buildError("Invalid credentials", 401);
   }
 
-  const token = generateToken(user._id);
+  const token = generateToken(company._id);
   return {
-    user: user.toJSON(),
+    company: company.toJSON(),
     token,
   };
 };

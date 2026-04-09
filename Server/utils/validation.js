@@ -9,6 +9,10 @@ const schemas = {
       .required(),
     password: Joi.string().min(6).required(),
     confirmPassword: Joi.string().valid(Joi.ref("password")).required(),
+    companyName: Joi.string().trim().min(2).max(150).required(),
+    industry: Joi.string()
+      .valid("technology", "finance", "healthcare", "retail", "manufacturing", "education", "other")
+      .required(),
   }),
 
   login: Joi.object({

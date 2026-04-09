@@ -31,7 +31,7 @@ const Login = () => {
       const result = await login(email, password)
 
       if (result.success) {
-        navigate('/')
+        navigate('/dashboard')
       } else {
         setApiError(result.error || 'Login failed. Please try again.')
       }

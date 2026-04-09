@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const User = require("../models/User");
+const Company = require("../models/User");
 const { AppError } = require("../utils/errorBuilder");
 
 const protect = async (req, res, next) => {
@@ -15,10 +15,11 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id);
+    req.company = await Company.findById(decoded.id);
+    req.user = req.company; // For backward compatibility with existing code
 
-    if (!req.user) {
-      return next(new AppError("User not found", 404));
+    if (!req.company) {
+      return next(new AppError("Company not found", 404));
     }
 
     next();
@@ -43,9 +44,10 @@ const optionalAuth = async (req, res, next) => {
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findById(decoded.id);
+      req.company = await Company.findById(decoded.id);
+      req.user = req.company; // For backward compatibility
     } catch (error) {
-      // Continue without user
+      // Continue without company
     }
   }
 

@@ -4,8 +4,12 @@ import { useAuth } from '../hooks/useAuth'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, company, logout } = useAuth()
   const navigate = useNavigate()
+  
+  const trialStatus = localStorage.getItem('trialStatus')
+    ? JSON.parse(localStorage.getItem('trialStatus'))
+    : null
 
   const handleLogout = () => {
     logout()
@@ -41,9 +45,14 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Link>
-                <span className="text-gray-700">
-                  Welcome, <span className="font-semibold">{user?.name}</span>
-                </span>
+                <div className="text-gray-700 text-sm">
+                  <div className="font-semibold">{company?.companyName}</div>
+                  {trialStatus?.isActive && (
+                    <div className="text-xs text-green-600">
+                      Trial: {trialStatus?.daysRemaining} days left
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={handleLogout}
                   className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
@@ -86,7 +95,12 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <div className="text-gray-700 px-2 py-2">
-                  Welcome, <span className="font-semibold">{user?.name}</span>
+                  <div className="font-semibold">{company?.companyName}</div>
+                  {trialStatus?.isActive && (
+                    <div className="text-xs text-green-600 mt-1">
+                      Trial: {trialStatus?.daysRemaining} days left
+                    </div>
+                  )}
                 </div>
                 <Link
                   to="/interview-mode"
