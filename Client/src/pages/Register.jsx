@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { useAuth } from '../hooks/useAuth'
 import { registerSchema, validateForm } from '../utils/validation'
 
@@ -11,8 +12,6 @@ const Register = () => {
   const [companyName, setCompanyName] = useState('')
   const [industry, setIndustry] = useState('')
   const [errors, setErrors] = useState({})
-  const [apiError, setApiError] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -23,8 +22,6 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrors({})
-    setApiError('')
-    setSuccessMessage('')
 
     // Check if passwords match
     if (password !== confirmPassword) {
@@ -51,7 +48,10 @@ const Register = () => {
       const result = await register(name, email, password, confirmPassword, companyName, industry)
 
       if (result.success) {
-        setSuccessMessage('Your 3-day trial has started. Redirecting to login...')
+        toast.success('Your 3-day trial has started. Redirecting to login...', {
+          position: 'top-right',
+          autoClose: 2000,
+        })
         // Clear form
         setName('')
         setEmail('')
@@ -63,11 +63,22 @@ const Register = () => {
         // Redirect after 2 seconds
         setTimeout(() => navigate('/login'), 2000)
       } else {
-        setApiError(result.error || 'Registration failed. Please try again.')
+        toast.error(result.error || 'Registration failed. Please try again.', {
+          position: 'top-right',
+          autoClose: 5000,
+        })
       }
     } catch (err) {
-      setApiError('An unexpected error occurred. Please try again.')
-      console.error(err)
+      const msg = err.response?.data?.message || 'An unexpected error occurred. Please try again.'
+      toast.error(msg, {
+        position: 'top-right',
+        autoClose: 5000,
+      })
+      
+      // Auto-redirect to login if duplicate email
+      if (msg.includes('already registered')) {
+        setTimeout(() => navigate('/login'), 2000)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -101,19 +112,7 @@ const Register = () => {
             <p className="text-gray-600">Join CareerPilot AI to ace your interviews</p>
           </div>
 
-          {/* Error Alert */}
-          {apiError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{apiError}</p>
-            </div>
-          )}
-
-          {/* Success Alert */}
-          {successMessage && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-700 text-sm">{successMessage}</p>
-            </div>
-          )}
+          {/* Error and Success Alerts - Now using toast notifications */}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">

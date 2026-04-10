@@ -11,7 +11,7 @@ const generateToken = (id) => {
 const register = async (name, email, password, companyName, industry) => {
   const companyExists = await Company.findOne({ email });
   if (companyExists) {
-    throw buildError("Company with this email already exists", 400);
+    throw buildError("This email is already registered. Please login instead.", 409);
   }
 
   // Auto-calculate 3-day trial

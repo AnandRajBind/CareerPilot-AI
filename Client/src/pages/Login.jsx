@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { useAuth } from '../hooks/useAuth'
 import { loginSchema, validateForm } from '../utils/validation'
 
@@ -7,7 +8,6 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
-  const [apiError, setApiError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -17,7 +17,6 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setErrors({})
-    setApiError('')
 
     // Validate form
     const validation = validateForm(loginSchema, { email, password })
@@ -33,11 +32,17 @@ const Login = () => {
       if (result.success) {
         navigate('/dashboard')
       } else {
-        setApiError(result.error || 'Login failed. Please try again.')
+        toast.error(result.error || 'Login failed. Please try again.', {
+          position: 'top-right',
+          autoClose: 5000,
+        })
       }
     } catch (err) {
-      setApiError('An unexpected error occurred. Please try again.')
-      console.error(err)
+      const msg = err.response?.data?.message || 'An unexpected error occurred. Please try again.'
+      toast.error(msg, {
+        position: 'top-right',
+        autoClose: 5000,
+      })
     } finally {
       setIsLoading(false)
     }
@@ -57,12 +62,7 @@ const Login = () => {
             <p className="text-gray-600">Sign in to your account to continue</p>
           </div>
 
-          {/* Error Alert */}
-          {apiError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{apiError}</p>
-            </div>
-          )}
+          {/* Error Alert - Now using toast notifications */}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
