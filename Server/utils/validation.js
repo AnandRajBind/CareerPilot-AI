@@ -102,16 +102,20 @@ const schemas = {
     templateName: Joi.string().trim().min(3).max(100).required(),
     templateDescription: Joi.string().trim().max(500).allow(""),
     jobRole: Joi.string()
-      .valid("Frontend", "Backend", "FullStack", "Java", "Python", "HR")
+      .lowercase()
+      .valid("frontend", "backend", "fullstack", "java", "python", "hr")
       .required(),
     experienceLevel: Joi.string()
-      .valid("Junior", "Mid", "Senior")
+      .lowercase()
+      .valid("junior", "mid", "senior")
       .required(),
     interviewType: Joi.string()
-      .valid("Technical", "Behavioral", "Combined")
+      .lowercase()
+      .valid("technical", "behavioral", "all")
       .required(),
     difficultyLevel: Joi.string()
-      .valid("Easy", "Medium", "Hard")
+      .lowercase()
+      .valid("easy", "medium", "hard")
       .required(),
     numberOfQuestions: Joi.number()
       .min(1)
@@ -123,13 +127,17 @@ const schemas = {
     templateName: Joi.string().trim().min(3).max(100),
     templateDescription: Joi.string().trim().max(500).allow(""),
     jobRole: Joi.string()
-      .valid("Frontend", "Backend", "FullStack", "Java", "Python", "HR"),
+      .lowercase()
+      .valid("frontend", "backend", "fullstack", "java", "python", "hr"),
     experienceLevel: Joi.string()
-      .valid("Junior", "Mid", "Senior"),
+      .lowercase()
+      .valid("junior", "mid", "senior"),
     interviewType: Joi.string()
-      .valid("Technical", "Behavioral", "Combined"),
+      .lowercase()
+      .valid("technical", "behavioral", "all"),
     difficultyLevel: Joi.string()
-      .valid("Easy", "Medium", "Hard"),
+      .lowercase()
+      .valid("easy", "medium", "hard"),
     numberOfQuestions: Joi.number()
       .min(1)
       .max(20),

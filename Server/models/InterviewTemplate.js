@@ -22,32 +22,32 @@ const interviewTemplateSchema = new mongoose.Schema(
     jobRole: {
       type: String,
       enum: {
-        values: ["Frontend", "Backend", "FullStack", "Java", "Python", "HR"],
-        message: "Job role must be one of: Frontend, Backend, FullStack, Java, Python, HR",
+        values: ["frontend", "backend", "fullstack", "java", "python", "hr"],
+        message: "Job role must be one of: frontend, backend, fullstack, java, python, hr",
       },
       required: [true, "Job role is required"],
     },
     interviewType: {
       type: String,
       enum: {
-        values: ["Technical", "Behavioral", "Combined"],
-        message: "Interview type must be one of: Technical, Behavioral, Combined",
+        values: ["technical", "behavioral", "all"],
+        message: "Interview type must be one of: technical, behavioral, all",
       },
       required: [true, "Interview type is required"],
     },
     experienceLevel: {
       type: String,
       enum: {
-        values: ["Junior", "Mid", "Senior"],
-        message: "Experience level must be one of: Junior, Mid, Senior",
+        values: ["junior", "mid", "senior"],
+        message: "Experience level must be one of: junior, mid, senior",
       },
       required: [true, "Experience level is required"],
     },
     difficultyLevel: {
       type: String,
       enum: {
-        values: ["Easy", "Medium", "Hard"],
-        message: "Difficulty level must be one of: Easy, Medium, Hard",
+        values: ["easy", "medium", "hard"],
+        message: "Difficulty level must be one of: easy, medium, hard",
       },
       required: [true, "Difficulty level is required"],
     },

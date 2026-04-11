@@ -10,17 +10,36 @@ const CreateInterviewTemplate = () => {
     templateName: '',
     templateDescription: '',
     jobRole: '',
-    interviewType: 'Technical',
-    experienceLevel: 'Mid',
-    difficultyLevel: 'Medium',
+    interviewType: 'technical',
+    experienceLevel: 'mid',
+    difficultyLevel: 'medium',
     numberOfQuestions: 5,
   })
   const [loading, setLoading] = useState(false)
 
-  const jobRoles = ['Frontend', 'Backend', 'FullStack', 'Java', 'Python', 'HR']
-  const interviewTypes = ['Technical', 'Behavioral', 'Combined']
-  const experienceLevels = ['Junior', 'Mid', 'Senior']
-  const difficulties = ['Easy', 'Medium', 'Hard']
+  const jobRoles = [
+    { value: 'frontend', label: 'Frontend' },
+    { value: 'backend', label: 'Backend' },
+    { value: 'fullstack', label: 'Full Stack' },
+    { value: 'java', label: 'Java' },
+    { value: 'python', label: 'Python' },
+    { value: 'hr', label: 'HR' },
+  ]
+  const interviewTypes = [
+    { value: 'technical', label: 'Technical' },
+    { value: 'behavioral', label: 'Behavioral' },
+    { value: 'all', label: 'Combined' },
+  ]
+  const experienceLevels = [
+    { value: 'junior', label: 'Junior' },
+    { value: 'mid', label: 'Mid' },
+    { value: 'senior', label: 'Senior' },
+  ]
+  const difficulties = [
+    { value: 'easy', label: 'Easy' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'hard', label: 'Hard' },
+  ]
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -196,8 +215,8 @@ const CreateInterviewTemplate = () => {
                   >
                     <option value="">Select a role</option>
                     {jobRoles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
+                      <option key={role.value} value={role.value}>
+                        {role.label}
                       </option>
                     ))}
                   </select>
@@ -215,8 +234,8 @@ const CreateInterviewTemplate = () => {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
                   >
                     {interviewTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
+                      <option key={type.value} value={type.value}>
+                        {type.label}
                       </option>
                     ))}
                   </select>
@@ -234,8 +253,8 @@ const CreateInterviewTemplate = () => {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
                   >
                     {experienceLevels.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
+                      <option key={level.value} value={level.value}>
+                        {level.label}
                       </option>
                     ))}
                   </select>
@@ -253,8 +272,8 @@ const CreateInterviewTemplate = () => {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
                   >
                     {difficulties.map((diff) => (
-                      <option key={diff} value={diff}>
-                        {diff}
+                      <option key={diff.value} value={diff.value}>
+                        {diff.label}
                       </option>
                     ))}
                   </select>

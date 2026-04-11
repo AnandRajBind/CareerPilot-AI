@@ -24,17 +24,21 @@ const createTemplate = async (req, res, next) => {
       throw buildError("All required fields must be provided: templateName, jobRole, interviewType, experienceLevel, difficultyLevel, numberOfQuestions", 400);
     }
 
-    // Create new template
-    const template = new InterviewTemplate({
+    // Normalize enum values to lowercase for consistency
+    // Values come from Joi validation which already applies .lowercase() transformation
+    const normalizedTemplate = {
       companyId: req.company._id,
       templateName,
       templateDescription: templateDescription || "",
-      jobRole,
-      interviewType,
-      experienceLevel,
-      difficultyLevel,
+      jobRole: jobRole?.toLowerCase(),
+      interviewType: interviewType?.toLowerCase(),
+      experienceLevel: experienceLevel?.toLowerCase(),
+      difficultyLevel: difficultyLevel?.toLowerCase(),
       numberOfQuestions,
-    });
+    };
+
+    // Create new template
+    const template = new InterviewTemplate(normalizedTemplate);
 
     await template.save();
 
@@ -51,6 +55,13 @@ const createTemplate = async (req, res, next) => {
       },
     });
   } catch (error) {
+    // Handle validation errors with user-friendly message
+    if (error.name === 'ValidationError' || error.message?.includes('must be one of')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid template configuration. Please check your input values.",
+      });
+    }
     next(error);
   }
 };
@@ -165,13 +176,13 @@ const updateTemplate = async (req, res, next) => {
       throw buildError("You don't have access to this template", 403);
     }
 
-    // Update fields
+    // Update fields with normalized values
     if (templateName) template.templateName = templateName;
     if (templateDescription !== undefined) template.templateDescription = templateDescription;
-    if (jobRole) template.jobRole = jobRole;
-    if (interviewType) template.interviewType = interviewType;
-    if (experienceLevel) template.experienceLevel = experienceLevel;
-    if (difficultyLevel) template.difficultyLevel = difficultyLevel;
+    if (jobRole) template.jobRole = jobRole?.toLowerCase();
+    if (interviewType) template.interviewType = interviewType?.toLowerCase();
+    if (experienceLevel) template.experienceLevel = experienceLevel?.toLowerCase();
+    if (difficultyLevel) template.difficultyLevel = difficultyLevel?.toLowerCase();
     if (numberOfQuestions) template.numberOfQuestions = numberOfQuestions;
     if (isActive !== undefined) template.isActive = isActive;
 
@@ -183,6 +194,13 @@ const updateTemplate = async (req, res, next) => {
       data: template,
     });
   } catch (error) {
+    // Handle validation errors with user-friendly message
+    if (error.name === 'ValidationError' || error.message?.includes('must be one of')) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid template configuration. Please check your input values.",
+      });
+    }
     next(error);
   }
 };
@@ -206,22 +224,64 @@ const startInterviewFromTemplate = async (req, res, next) => {
       throw buildError("Interview session not found or has expired", 404);
     }
 
-    // Generate questions using the template configuration
+    // Define allowed values for validation
+    const allowedRoles = ["frontend", "backend", "fullstack", "java", "python", "hr"];
+    const allowedExperienceLevels = ["junior", "mid", "senior"];
+    const allowedInterviewTypes = ["technical", "behavioral", "all"];
+    const allowedDifficultyLevels = ["easy", "medium", "hard"];
+
+    // Normalize template values to lowercase for validation compatibility
+    // This ensures existing database records with any case variation work correctly
+    const jobRole = (template.jobRole || "").toLowerCase().trim();
+    const experienceLevel = (template.experienceLevel || "").toLowerCase().trim();
+    const interviewType = (template.interviewType || "").toLowerCase().trim();
+    const difficultyLevel = (template.difficultyLevel || "").toLowerCase().trim();
+
+    // Validate normalized values against allowed values
+    if (!jobRole || !allowedRoles.includes(jobRole)) {
+      throw buildError(
+        `Invalid job role: "${template.jobRole}". Allowed values: ${allowedRoles.join(", ")}`,
+        400
+      );
+    }
+
+    if (!experienceLevel || !allowedExperienceLevels.includes(experienceLevel)) {
+      throw buildError(
+        `Invalid experience level: "${template.experienceLevel}". Allowed values: ${allowedExperienceLevels.join(", ")}`,
+        400
+      );
+    }
+
+    if (!interviewType || !allowedInterviewTypes.includes(interviewType)) {
+      throw buildError(
+        `Invalid interview type: "${template.interviewType}". Allowed values: ${allowedInterviewTypes.join(", ")}`,
+        400
+      );
+    }
+
+    if (!difficultyLevel || !allowedDifficultyLevels.includes(difficultyLevel)) {
+      throw buildError(
+        `Invalid difficulty level: "${template.difficultyLevel}". Allowed values: ${allowedDifficultyLevels.join(", ")}`,
+        400
+      );
+    }
+
+    // Generate questions using the validated, normalized template configuration
     const questionsData = await generateQuestions({
-      jobRole: template.jobRole,
-      experienceLevel: template.experienceLevel,
-      interviewType: template.interviewType,
-      difficultyLevel: template.difficultyLevel,
+      jobRole,
+      experienceLevel,
+      interviewType,
+      difficultyLevel,
       numberOfQuestions: template.numberOfQuestions,
     });
 
-    // Create interview record (linked to company)
+    // Create interview record (linked to company) with normalized values
     const interview = new Interview({
       companyId: template.companyId,
-      jobRole: template.jobRole,
-      experienceLevel: template.experienceLevel,
-      interviewType: template.interviewType,
-      difficultyLevel: template.difficultyLevel,
+      jobRole,
+      experienceLevel,
+      interviewType,
+      difficultyLevel,
       numberOfQuestions: template.numberOfQuestions,
       questions: questionsData.questions,
       answers: Array(questionsData.questions.length).fill(""),
@@ -242,6 +302,7 @@ const startInterviewFromTemplate = async (req, res, next) => {
       success: true,
       message: "Interview session started",
       data: {
+        sessionId: interview._id,
         interviewId: interview._id,
         questions: interview.questions,
         numberOfQuestions: interview.numberOfQuestions,
@@ -252,6 +313,26 @@ const startInterviewFromTemplate = async (req, res, next) => {
       },
     });
   } catch (error) {
+    // Handle validation and configuration errors with detailed message
+    if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
+      // AppError or validation error - return as is
+      return next(error);
+    }
+
+    if (error.name === 'ValidationError') {
+      // MongoDB validation error
+      const errorDetails = Object.values(error.errors)
+        .map((e) => e.message)
+        .join("; ");
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid interview configuration",
+        details: errorDetails,
+      });
+    }
+
+    // Unexpected error
     next(error);
   }
 };
