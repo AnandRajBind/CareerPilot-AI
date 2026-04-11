@@ -94,6 +94,23 @@ const interviewSchema = new mongoose.Schema(
       },
       default: "in-progress",
     },
+    templateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "InterviewTemplate",
+      default: null,
+    },
+    isTemplateBasedInterview: {
+      type: Boolean,
+      default: false,
+    },
+    candidateEmail: {
+      type: String,
+      default: null,
+    },
+    candidateName: {
+      type: String,
+      default: null,
+    },
     createdAt: {
       type: Date,
       default: Date.now,

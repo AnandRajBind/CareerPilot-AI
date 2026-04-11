@@ -97,6 +97,44 @@ const schemas = {
     answers: Joi.array().items(Joi.string()),
     status: Joi.string().valid("in-progress", "completed", "failed"),
   }),
+
+  createTemplate: Joi.object({
+    templateName: Joi.string().trim().min(3).max(100).required(),
+    templateDescription: Joi.string().trim().max(500).allow(""),
+    jobRole: Joi.string()
+      .valid("Frontend", "Backend", "FullStack", "Java", "Python", "HR")
+      .required(),
+    experienceLevel: Joi.string()
+      .valid("Junior", "Mid", "Senior")
+      .required(),
+    interviewType: Joi.string()
+      .valid("Technical", "Behavioral", "Combined")
+      .required(),
+    difficultyLevel: Joi.string()
+      .valid("Easy", "Medium", "Hard")
+      .required(),
+    numberOfQuestions: Joi.number()
+      .min(1)
+      .max(20)
+      .required(),
+  }),
+
+  updateTemplate: Joi.object({
+    templateName: Joi.string().trim().min(3).max(100),
+    templateDescription: Joi.string().trim().max(500).allow(""),
+    jobRole: Joi.string()
+      .valid("Frontend", "Backend", "FullStack", "Java", "Python", "HR"),
+    experienceLevel: Joi.string()
+      .valid("Junior", "Mid", "Senior"),
+    interviewType: Joi.string()
+      .valid("Technical", "Behavioral", "Combined"),
+    difficultyLevel: Joi.string()
+      .valid("Easy", "Medium", "Hard"),
+    numberOfQuestions: Joi.number()
+      .min(1)
+      .max(20),
+    isActive: Joi.boolean(),
+  }),
 };
 
 const validate = (schema) => (req, res, next) => {

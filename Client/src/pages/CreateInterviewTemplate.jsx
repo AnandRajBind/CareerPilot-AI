@@ -53,21 +53,20 @@ const CreateInterviewTemplate = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/interviews/start', {
+      const response = await fetch('http://localhost:5000/api/company/interviews/template', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          templateName: formData.templateName,
+          templateDescription: formData.templateDescription,
           jobRole: formData.jobRole,
           interviewType: formData.interviewType,
           experienceLevel: formData.experienceLevel,
           difficultyLevel: formData.difficultyLevel,
           numberOfQuestions: formData.numberOfQuestions,
-          templateName: formData.templateName,
-          templateDescription: formData.templateDescription,
-          isTemplate: true,
         }),
       })
 

@@ -20,6 +20,7 @@ import CompanyInterviews from './pages/CompanyInterviews'
 import CreateInterviewTemplate from './pages/CreateInterviewTemplate'
 import AdminResults from './pages/AdminResults'
 import AdminBilling from './pages/AdminBilling'
+import InterviewSession from './pages/InterviewSession'
 
 function App() {
   return (
@@ -40,6 +41,9 @@ function App() {
                 <Route path="/system-check" element={<ProtectedRoute><SystemCheck /></ProtectedRoute>} />
                 <Route path="/interview-screen" element={<ProtectedRoute><InterviewScreen /></ProtectedRoute>} />
                 <Route path="/interview-results" element={<ProtectedRoute><InterviewResults /></ProtectedRoute>} />
+                
+                {/* Public Interview Session (via template token) */}
+                <Route path="/interview/session/:token" element={<InterviewSession />} />
                 
                 {/* Company Admin Dashboard */}
                 <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
