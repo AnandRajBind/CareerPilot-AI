@@ -33,6 +33,7 @@ const CreateInterviewTemplate = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // Validation
     if (!formData.templateName.trim()) {
       toast.error('Please enter a template name', {
         position: 'top-right',
@@ -41,8 +42,32 @@ const CreateInterviewTemplate = () => {
       return
     }
 
+    if (formData.templateName.length < 3) {
+      toast.error('Template name must be at least 3 characters', {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+      return
+    }
+
+    if (formData.templateName.length > 100) {
+      toast.error('Template name must be less than 100 characters', {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+      return
+    }
+
     if (!formData.jobRole) {
       toast.error('Please select a job role', {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+      return
+    }
+
+    if (formData.numberOfQuestions < 1 || formData.numberOfQuestions > 20) {
+      toast.error('Number of questions must be between 1 and 20', {
         position: 'top-right',
         autoClose: 3000,
       })
@@ -79,7 +104,8 @@ const CreateInterviewTemplate = () => {
         setTimeout(() => navigate('/dashboard/interviews'), 2000)
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to create template', {
+        const errorMsg = error.message || error.data?.message || 'Failed to create template'
+        toast.error(errorMsg, {
           position: 'top-right',
           autoClose: 3000,
         })
@@ -132,7 +158,7 @@ const CreateInterviewTemplate = () => {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Give your template a descriptive name for easy identification
+                    Minimum 3 characters, maximum 100 characters ({formData.templateName.length}/100)
                   </p>
                 </div>
 

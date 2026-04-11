@@ -21,6 +21,9 @@ import CreateInterviewTemplate from './pages/CreateInterviewTemplate'
 import AdminResults from './pages/AdminResults'
 import AdminBilling from './pages/AdminBilling'
 import InterviewSession from './pages/InterviewSession'
+import PublicSystemCheck from './pages/PublicSystemCheck'
+import PublicInterviewScreen from './pages/PublicInterviewScreen'
+import PublicInterviewResults from './pages/PublicInterviewResults'
 
 function App() {
   return (
@@ -44,6 +47,9 @@ function App() {
                 
                 {/* Public Interview Session (via template token) */}
                 <Route path="/interview/session/:token" element={<InterviewSession />} />
+                <Route path="/interview/session/:token/system-check" element={<PublicSystemCheck />} />
+                <Route path="/interview/session/:token/screen" element={<PublicInterviewScreen />} />
+                <Route path="/interview/session/:token/results" element={<PublicInterviewResults />} />
                 
                 {/* Company Admin Dashboard */}
                 <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />

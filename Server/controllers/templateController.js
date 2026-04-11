@@ -1,7 +1,7 @@
 const InterviewTemplate = require("../models/InterviewTemplate");
 const Interview = require("../models/Interview");
 const { buildError } = require("../utils/errorBuilder");
-const { generateQuestions } = require("../services/groqService");
+const { generateQuestions, evaluateAnswer, generateFinalEvaluation } = require("../services/groqService");
 
 /**
  * Create a new interview template
@@ -17,11 +17,11 @@ const createTemplate = async (req, res, next) => {
       experienceLevel,
       difficultyLevel,
       numberOfQuestions,
-    } = req.validatedBody;
+    } = req.validatedBody || req.body;
 
     // Validate required fields
     if (!templateName || !jobRole || !interviewType || !experienceLevel || !difficultyLevel || !numberOfQuestions) {
-      throw buildError("All required fields must be provided", 400);
+      throw buildError("All required fields must be provided: templateName, jobRole, interviewType, experienceLevel, difficultyLevel, numberOfQuestions", 400);
     }
 
     // Create new template
@@ -194,7 +194,7 @@ const updateTemplate = async (req, res, next) => {
 const startInterviewFromTemplate = async (req, res, next) => {
   try {
     const { token } = req.params;
-    const { candidateEmail, candidateName } = req.validatedBody || {};
+    const { candidateEmail, candidateName } = req.body || {};
 
     // Find template by unique token
     const template = await InterviewTemplate.findOne({
@@ -289,6 +289,123 @@ const getTemplateInfoByToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Evaluate template-based interview (public - no auth required)
+ * POST /api/interview/evaluate
+ */
+const evaluateTemplateInterview = async (req, res, next) => {
+  try {
+    const {
+      interviewId,
+      jobRole,
+      experienceLevel,
+      questions,
+      interviewType,
+      difficultyLevel,
+      candidateEmail,
+      candidateName,
+    } = req.body;
+
+    if (!interviewId || !jobRole || !questions || !Array.isArray(questions)) {
+      throw buildError("Invalid request parameters", 400);
+    }
+
+    // Find the interview record
+    const interview = await Interview.findById(interviewId);
+    if (!interview) {
+      throw buildError("Interview not found", 404);
+    }
+
+    // Evaluate each answer
+    const evaluations = [];
+    const scores = [];
+
+    for (const qa of questions) {
+      const evaluation = await evaluateAnswer({
+        question: qa.question,
+        answer: qa.answer,
+        jobRole: jobRole,
+        experienceLevel: experienceLevel,
+        difficultyLevel: difficultyLevel,
+      });
+
+      evaluations.push({
+        question: qa.question,
+        answer: qa.answer,
+        score: evaluation.score * 10, // Convert from 0-10 to 0-100
+        feedback: evaluation.suggestions,
+        strengths: evaluation.strengths,
+        weaknesses: evaluation.weaknesses,
+      });
+
+      scores.push(evaluation.score * 10);
+    }
+
+    // Generate final evaluation
+    const finalEval = await generateFinalEvaluation({
+      jobRole: jobRole,
+      experienceLevel: experienceLevel,
+      interviewType: interviewType,
+      questionsAndAnswers: questions,
+      scores: scores,
+    });
+
+    // Calculate overall score
+    const overallScore = Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) || 0);
+
+    // Determine performance level
+    let performanceLevel = "Poor";
+    if (overallScore >= 80) performanceLevel = "Excellent";
+    else if (overallScore >= 70) performanceLevel = "Very Good";
+    else if (overallScore >= 60) performanceLevel = "Good";
+    else if (overallScore >= 50) performanceLevel = "Fair";
+
+    // Update interview record with evaluation
+    interview.answers = questions.map((q) => q.answer);
+    interview.status = "completed";
+    interview.evaluation = {
+      score: overallScore,
+      performanceLevel: performanceLevel,
+      summary: finalEval.strengths,
+      detailedFeedback: {
+        strengths: finalEval.strengths,
+        weaknesses: finalEval.weaknesses,
+        suggestions: finalEval.suggestions,
+      },
+      interviewTips: finalEval.interviewTips,
+    };
+    interview.completedAt = new Date();
+
+    await interview.save();
+
+    // Prepare response
+    const response = {
+      overallScore: overallScore,
+      performanceLevel: performanceLevel,
+      summary: finalEval.strengths,
+      scores: {
+        technicalKnowledge: Math.round(scores[0] || 0),
+        communication: Math.round(scores.length > 1 ? scores[1] : 0),
+        problemSolving: Math.round(scores.length > 2 ? scores[2] : 0),
+        overallFit: overallScore,
+      },
+      feedback: {
+        strengths: finalEval.strengths,
+        areasForImprovement: finalEval.weaknesses,
+      },
+      questions: evaluations,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Interview evaluated successfully",
+      data: response,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTemplate,
   getCompanyTemplates,
@@ -297,4 +414,5 @@ module.exports = {
   updateTemplate,
   startInterviewFromTemplate,
   getTemplateInfoByToken,
+  evaluateTemplateInterview,
 };

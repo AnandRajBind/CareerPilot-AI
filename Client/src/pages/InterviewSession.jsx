@@ -124,12 +124,12 @@ const InterviewSession = () => {
           })
         )
 
-        toast.success('Interview started! Redirecting...', {
+        toast.success('Interview started! Redirecting to system check...', {
           position: 'top-right',
           autoClose: 2000,
         })
 
-        setTimeout(() => navigate(`/interview/${data.data.interviewId}/start`), 2000)
+        setTimeout(() => navigate(`/interview/session/${token}/system-check`), 2000)
       } else {
         const error = await response.json()
         toast.error(error.message || 'Failed to start interview', {
