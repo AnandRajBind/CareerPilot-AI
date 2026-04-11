@@ -15,6 +15,11 @@ import SystemCheck from './pages/SystemCheck'
 import InterviewScreen from './pages/InterviewScreen'
 import InterviewResults from './pages/InterviewResults'
 import Dashboard from './pages/Dashboard'
+import AdminDashboard from './pages/AdminDashboard'
+import CompanyInterviews from './pages/CompanyInterviews'
+import CreateInterviewTemplate from './pages/CreateInterviewTemplate'
+import AdminResults from './pages/AdminResults'
+import AdminBilling from './pages/AdminBilling'
 
 function App() {
   return (
@@ -28,11 +33,21 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                
+                {/* Candidate Features */}
+                <Route path="/candidate-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/interview-mode" element={<ProtectedRoute><InterviewMode /></ProtectedRoute>} />
                 <Route path="/system-check" element={<ProtectedRoute><SystemCheck /></ProtectedRoute>} />
                 <Route path="/interview-screen" element={<ProtectedRoute><InterviewScreen /></ProtectedRoute>} />
                 <Route path="/interview-results" element={<ProtectedRoute><InterviewResults /></ProtectedRoute>} />
+                
+                {/* Company Admin Dashboard */}
+                <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/dashboard/interviews" element={<ProtectedRoute><CompanyInterviews /></ProtectedRoute>} />
+                <Route path="/dashboard/create-interview" element={<ProtectedRoute><CreateInterviewTemplate /></ProtectedRoute>} />
+                <Route path="/dashboard/results" element={<ProtectedRoute><AdminResults /></ProtectedRoute>} />
+                <Route path="/dashboard/billing" element={<ProtectedRoute><AdminBilling /></ProtectedRoute>} />
+                
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
