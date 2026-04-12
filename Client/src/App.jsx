@@ -5,7 +5,9 @@ import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext'
 import { InterviewProvider } from './context/InterviewContext'
 import { MediaProvider } from './context/MediaContext'
+import { StreamProvider } from './context/StreamContext'
 import Navbar from './components/Navbar'
+import VideoInterviewRoom from './components/VideoInterviewRoom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -29,8 +31,9 @@ function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
-        <MediaProvider>
-          <InterviewProvider>
+        <StreamProvider>
+          <MediaProvider>
+            <InterviewProvider>
             <Navbar />
             <main>
               <Routes>
@@ -48,6 +51,7 @@ function App() {
                 {/* Public Interview Session (via template token) */}
                 <Route path="/interview/session/:token" element={<InterviewSession />} />
                 <Route path="/interview/session/:token/system-check" element={<PublicSystemCheck />} />
+                <Route path="/interview/session/:token/video" element={<VideoInterviewRoom />} />
                 <Route path="/interview/session/:token/screen" element={<PublicInterviewScreen />} />
                 <Route path="/interview/session/:token/results" element={<PublicInterviewResults />} />
                 
@@ -72,8 +76,9 @@ function App() {
               draggable
               pauseOnHover
             />
-          </InterviewProvider>
-        </MediaProvider>
+            </InterviewProvider>
+          </MediaProvider>
+        </StreamProvider>
       </AuthProvider>
     </Router>
   )

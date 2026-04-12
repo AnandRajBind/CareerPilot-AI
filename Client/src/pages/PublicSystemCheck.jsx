@@ -260,24 +260,45 @@ const PublicSystemCheck = () => {
               </div>
 
               {/* Start Interview Button */}
-              <button
-                onClick={handleStartInterview}
-                disabled={!canStart || isStarting}
-                className={`w-full py-3 rounded-lg font-semibold transition ${
-                  canStart && !isStarting
-                    ? 'bg-green-600 text-white hover:bg-green-700'
-                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                }`}
-              >
-                {isStarting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader size={18} className="animate-spin" />
-                    Starting...
-                  </span>
-                ) : (
-                  'Start Interview'
-                )}
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => navigate(`/interview/session/${token}/video`)}
+                  disabled={isStarting}
+                  className={`w-full py-3 rounded-lg font-semibold transition ${
+                    !isStarting
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  }`}
+                >
+                  {isStarting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader size={18} className="animate-spin" />
+                      Starting...
+                    </span>
+                  ) : (
+                    'Start with Video'
+                  )}
+                </button>
+
+                <button
+                  onClick={handleStartInterview}
+                  disabled={!canStart || isStarting}
+                  className={`w-full py-3 rounded-lg font-semibold transition ${
+                    canStart && !isStarting
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                  }`}
+                >
+                  {isStarting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader size={18} className="animate-spin" />
+                      Starting...
+                    </span>
+                  ) : (
+                    'Start with Text'
+                  )}
+                </button>
+              </div>
 
               {!canStart && (
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">

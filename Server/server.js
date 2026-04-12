@@ -12,6 +12,7 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const interviewRoutes = require("./routes/interview");
 const templateRoutes = require("./routes/template");
+const streamRoutes = require("./routes/stream");
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/company/interviews", templateRoutes);
 app.use("/api/interview", templateRoutes);
+app.use("/api/stream", streamRoutes);
 
 // 404 handler
 app.use((req, res) => {
