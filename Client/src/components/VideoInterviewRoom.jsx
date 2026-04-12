@@ -1,281 +1,124 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { Loader, PhoneOff, Mic, MicOff, Video, VideoOff, Share2, X } from 'lucide-react'
-import { useStream } from '../context/StreamContext'
+import { Loader, Phone, Mic, MicOff, Video, VideoOff } from 'lucide-react'
 
 const VideoInterviewRoom = () => {
   const { token } = useParams()
   const navigate = useNavigate()
-  const { 
-    call, 
-    createVideoCall, 
-    endVideoCall, 
-    toggleVideo, 
-    toggleMicrophone,
-    isFallbackMode,
-    setIsFallbackMode 
-  } = useStream()
-
   const [isLoading, setIsLoading] = useState(true)
-  const [cameraEnabled, setCameraEnabled] = useState(true)
-  const [micEnabled, setMicEnabled] = useState(true)
-  const [screenSharing, setScreenSharing] = useState(false)
-  const localVideoRef = useRef(null)
-  const remoteVideoRef = useRef(null)
-  const screenShareRef = useRef(null)
+  const [isMicEnabled, setIsMicEnabled] = useState(true)
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true)
+  const [interviewData, setInterviewData] = useState(null)
 
-  // Initialize video call
   useEffect(() => {
-    const initializeCall = async () => {
-      try {
-        setIsLoading(true)
-        
-        // Get interview session data
-        const sessionData = localStorage.getItem('currentInterview')
-        if (!sessionData) {
-          toast.error('Interview session data not found')
-          navigate(-1)
-          return
-        }
-
-        const interview = JSON.parse(sessionData)
-        
-        // Create unique call ID based on interview and token
-        const callId = `interview-${interview.interviewId}`
-
-        // Attempt to create video call
-        try {
-          await createVideoCall(callId)
-        } catch (err) {
-          console.warn('Video call failed, using text mode:', err.message)
-          setIsFallbackMode(true)
-          toast.warning('Video unavailable. Using text-based interview mode.', {
-            position: 'top-right',
-            autoClose: 5000,
-          })
-        }
-
-        setIsLoading(false)
-      } catch (error) {
-        console.error('Failed to initialize interview:', error)
-        toast.error('Failed to initialize interview')
-        setIsLoading(false)
-      }
-    }
-
-    initializeCall()
-
-    return () => {
-      // Cleanup on unmount
-      if (call) {
-        endVideoCall()
-      }
-    }
-  }, [token, createVideoCall, endVideoCall, navigate, setIsFallbackMode])
-
-  // Handle camera toggle
-  const handleToggleCamera = async () => {
-    try {
-      const newState = !cameraEnabled
-      await toggleVideo(newState)
-      setCameraEnabled(newState)
-      toast.info(newState ? 'Camera enabled' : 'Camera disabled', {
+    // Get interview data from localStorage
+    const savedInterview = localStorage.getItem('currentInterview')
+    if (!savedInterview) {
+      toast.error('Interview session not found', {
         position: 'top-right',
-        autoClose: 2000,
+        autoClose: 3000,
       })
-    } catch (err) {
-      toast.error('Failed to toggle camera')
+      navigate(`/interview/session/${token}`)
+      return
     }
+    
+    setInterviewData(JSON.parse(savedInterview))
+    setIsLoading(false)
+  }, [token, navigate])
+
+  const handleToggleMic = () => {
+    setIsMicEnabled(!isMicEnabled)
+    toast.info(isMicEnabled ? '🔇 Microphone disabled' : '🎤 Microphone enabled', {
+      position: 'bottom-right',
+      autoClose: 2000,
+    })
   }
 
-  // Handle microphone toggle
-  const handleToggleMicrophone = async () => {
-    try {
-      const newState = !micEnabled
-      await toggleMicrophone(newState)
-      setMicEnabled(newState)
-      toast.info(newState ? 'Microphone enabled' : 'Microphone disabled', {
-        position: 'top-right',
-        autoClose: 2000,
-      })
-    } catch (err) {
-      toast.error('Failed to toggle microphone')
-    }
+  const handleToggleVideo = () => {
+    setIsVideoEnabled(!isVideoEnabled)
+    toast.info(isVideoEnabled ? '📹 Camera disabled' : '📹 Camera enabled', {
+      position: 'bottom-right',
+      autoClose: 2000,
+    })
   }
 
-  // Handle screen sharing
-  const handleScreenShare = async () => {
-    try {
-      if (!screenSharing && call?.screenShare) {
-        // Start screen share
-        await call.screenShare.toggle(true)
-        setScreenSharing(true)
-        toast.info('Screen sharing started', {
-          position: 'top-right',
-          autoClose: 2000,
-        })
-      } else if (screenSharing && call?.screenShare) {
-        // Stop screen share
-        await call.screenShare.toggle(false)
-        setScreenSharing(false)
-        toast.info('Screen sharing stopped', {
-          position: 'top-right',
-          autoClose: 2000,
-        })
-      }
-    } catch (err) {
-      toast.error('Failed to toggle screen sharing')
-    }
-  }
-
-  // Handle end call
-  const handleEndCall = async () => {
-    try {
-      await endVideoCall()
-      navigate(`/interview/session/${token}/results`)
-    } catch (err) {
-      toast.error('Failed to end call')
-    }
-  }
-
-  if (isFallbackMode) {
-    // Fall back to text-based interview mode
-    return (
-      <div className='min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 py-8'>
-        <div className='max-w-4xl mx-auto'>
-          <div className='bg-white rounded-lg shadow-lg p-8'>
-            <div className='text-center mb-8'>
-              <h1 className='text-3xl font-bold text-gray-900 mb-2'>
-                Interview Session
-              </h1>
-              <p className='text-gray-600'>
-                Video unavailable - using text-based interview mode
-              </p>
-            </div>
-
-            <div className='bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8'>
-              <p className='text-blue-800'>
-                The video interview feature is temporarily unavailable. You'll complete the interview through our text-based Q&A system instead.
-              </p>
-            </div>
-
-            <button
-              onClick={() => navigate(`/interview/session/${token}/screen`)}
-              className='w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-primary-dark transition'
-            >
-              Continue with Text Interview
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+  const handleEndCall = () => {
+    toast.info('Ending interview session...', {
+      position: 'top-right',
+      autoClose: 2000,
+    })
+    navigate(`/interview/session/${token}/results`)
   }
 
   if (isLoading) {
     return (
-      <div className='min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100'>
-        <div className='flex flex-col items-center gap-4'>
-          <Loader className='animate-spin text-primary' size={40} />
-          <p className='text-gray-600'>Initializing video interview...</p>
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex flex-col items-center gap-4">
+          <Loader className="animate-spin text-blue-600" size={40} />
+          <p className="text-gray-600">Starting video interview...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className='min-h-screen bg-gray-900 flex flex-col'>
-      {/* Video Container */}
-      <div className='flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 p-4'>
-        {/* Local Video */}
-        <div className='bg-black rounded-lg overflow-hidden flex items-center justify-center'>
-          <div ref={localVideoRef} className='w-full h-full object-cover' />
-          {!cameraEnabled && (
-            <div className='absolute inset-0 bg-black/50 flex items-center justify-center'>
-              <div className='text-white text-center'>
-                <VideoOff size={48} className='mx-auto mb-2' />
-                <p>Camera is off</p>
-              </div>
-            </div>
-          )}
-          <div className='absolute top-4 left-4 bg-gray-800 backdrop-blur px-3 py-1 rounded text-white text-sm'>
-            You
-          </div>
-        </div>
-
-        {/* Remote Video (AI Interviewer) */}
-        <div className='bg-black rounded-lg overflow-hidden flex items-center justify-center'>
-          <div ref={remoteVideoRef} className='w-full h-full object-cover' />
-          <div className='absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/20'>
-            <div className='text-white text-center'>
-              <Video size={48} className='mx-auto mb-2' />
-              <p className='text-lg font-semibold'>AI Interviewer</p>
-              <p className='text-sm text-gray-300 mt-1'>Connecting...</p>
-            </div>
-          </div>
-          <div className='absolute top-4 right-4 bg-gray-800 backdrop-blur px-3 py-1 rounded text-white text-sm'>
-            Interviewer
+    <div className="h-screen bg-black flex flex-col">
+      {/* Video Grid */}
+      <div className="flex-1 flex items-center justify-center bg-black">
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <Video size={64} className="text-white/30 mx-auto mb-4" />
+            <p className="text-white text-lg">Video Interview Session</p>
+            <p className="text-white/70 text-sm mt-2">{interviewData?.jobRole} - {interviewData?.interviewType}</p>
           </div>
         </div>
       </div>
 
-      {/* Screen Share (if active) */}
-      {screenSharing && (
-        <div className='bg-black border-t border-gray-700 p-4 max-h-48'>
-          <div ref={screenShareRef} className='w-full h-full max-w-md rounded-lg overflow-hidden bg-gray-800' />
-          <p className='text-white text-sm text-center mt-2'>Screen Sharing Active</p>
-        </div>
-      )}
-
-      {/* Control Bar */}
-      <div className='bg-gray-800 border-t border-gray-700 px-4 py-4'>
-        <div className='flex items-center justify-center gap-4'>
-          {/* Microphone */}
+      {/* Control Panel */}
+      <div className="bg-gray-900 border-t border-gray-800 p-6">
+        <div className="max-w-md mx-auto flex items-center justify-center gap-4">
+          {/* Microphone Control */}
           <button
-            onClick={handleToggleMicrophone}
-            className={`p-3 rounded-full transition ${
-              micEnabled
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-red-600 hover:bg-red-700 text-white'
+            onClick={handleToggleMic}
+            className={`p-4 rounded-full transition ${
+              isMicEnabled
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-red-600 hover:bg-red-700'
             }`}
-            title={micEnabled ? 'Disable microphone' : 'Enable microphone'}
+            title={isMicEnabled ? 'Disable microphone' : 'Enable microphone'}
           >
-            {micEnabled ? <Mic size={20} /> : <MicOff size={20} />}
+            {isMicEnabled ? (
+              <Mic size={24} className="text-white" />
+            ) : (
+              <MicOff size={24} className="text-white" />
+            )}
           </button>
 
-          {/* Camera */}
+          {/* Camera Control */}
           <button
-            onClick={handleToggleCamera}
-            className={`p-3 rounded-full transition ${
-              cameraEnabled
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-red-600 hover:bg-red-700 text-white'
+            onClick={handleToggleVideo}
+            className={`p-4 rounded-full transition ${
+              isVideoEnabled
+                ? 'bg-gray-700 hover:bg-gray-600'
+                : 'bg-red-600 hover:bg-red-700'
             }`}
-            title={cameraEnabled ? 'Disable camera' : 'Enable camera'}
+            title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
           >
-            {cameraEnabled ? <Video size={20} /> : <VideoOff size={20} />}
+            {isVideoEnabled ? (
+              <Video size={24} className="text-white" />
+            ) : (
+              <VideoOff size={24} className="text-white" />
+            )}
           </button>
 
-          {/* Screen Share */}
-          <button
-            onClick={handleScreenShare}
-            className={`p-3 rounded-full transition ${
-              screenSharing
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-700 hover:bg-gray-600 text-white'
-            }`}
-            title={screenSharing ? 'Stop screen sharing' : 'Start screen sharing'}
-          >
-            {screenSharing ? <X size={20} /> : <Share2 size={20} />}
-          </button>
-
-          {/* End Call */}
+          {/* End Call Button */}
           <button
             onClick={handleEndCall}
-            className='p-3 rounded-full bg-red-600 hover:bg-red-700 text-white transition ml-8'
-            title='End interview'
+            className="p-4 rounded-full bg-red-600 hover:bg-red-700 transition"
+            title="End call"
           >
-            <PhoneOff size={20} />
+            <Phone size={24} className="text-white" />
           </button>
         </div>
       </div>

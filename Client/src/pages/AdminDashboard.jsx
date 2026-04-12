@@ -19,7 +19,7 @@ const AdminDashboard = () => {
         const token = localStorage.getItem('token')
         
         // Fetch interviews
-        const response = await fetch('http://localhost:5000/api/interviews', {
+        const response = await fetch('http://localhost:9000/api/interviews', {
           headers: {
             'Authorization': `Bearer ${token}`,
           },

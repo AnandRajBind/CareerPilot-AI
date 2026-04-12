@@ -126,7 +126,7 @@ const PublicSystemCheck = () => {
 
     setIsStarting(true)
     try {
-      navigate(`/interview/session/${token}/screen`)
+      navigate(`/interview/session/${token}/video`)
     } catch (error) {
       toast.error('Failed to start interview', {
         position: 'top-right',

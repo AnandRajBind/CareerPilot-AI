@@ -97,7 +97,7 @@ const CreateInterviewTemplate = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/company/interviews/template', {
+      const response = await fetch('http://localhost:9000/api/company/interviews/template', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

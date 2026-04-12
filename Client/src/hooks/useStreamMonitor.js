@@ -6,7 +6,7 @@ export const useStreamMonitor = ({
   cameraStream,
   screenStream,
   microphoneTrack,
-  pingUrl = 'http://localhost:5000/api/health',
+  pingUrl = 'http://localhost:9000/api/health',
   intervalMs = 5000,
 }) => {
   const [streamsOk, setStreamsOk] = useState(true)

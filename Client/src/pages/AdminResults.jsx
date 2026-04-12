@@ -22,7 +22,7 @@ const AdminResults = () => {
   const fetchResults = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/interviews', {
+      const response = await fetch('http://localhost:9000/api/interviews', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

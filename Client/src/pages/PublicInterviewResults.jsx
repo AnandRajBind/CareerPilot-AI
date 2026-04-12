@@ -54,7 +54,7 @@ const PublicInterviewResults = () => {
       })
 
       // Send to backend for evaluation
-      const response = await fetch('http://localhost:5000/api/interview/evaluate', {
+      const response = await fetch('http://localhost:9000/api/interview/evaluate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +97,7 @@ const PublicInterviewResults = () => {
     try {
       const candidateInfo = JSON.parse(localStorage.getItem('candidateInfo') || '{}')
 
-      const response = await fetch('http://localhost:5000/api/interview/send-results', {
+      const response = await fetch('http://localhost:9000/api/interview/send-results', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

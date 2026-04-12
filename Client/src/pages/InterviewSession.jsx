@@ -22,7 +22,7 @@ const InterviewSession = () => {
 
   const fetchTemplateInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/interview/session/${token}/info`)
+      const response = await fetch(`http://localhost:9000/api/interview/session/${token}/info`)
 
       if (response.ok) {
         const data = await response.json()
@@ -86,7 +86,7 @@ const InterviewSession = () => {
     setSubmitting(true)
 
     try {
-      const response = await fetch(`http://localhost:5000/api/interview/session/${token}/start`, {
+      const response = await fetch(`http://localhost:9000/api/interview/session/${token}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
