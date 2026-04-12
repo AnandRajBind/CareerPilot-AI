@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { CheckCircle, AlertCircle, Loader } from 'lucide-react'
+import { CheckCircle, AlertCircle, Loader, Video, Mic, Share2 } from 'lucide-react'
 import { useSystemCheck } from '../hooks/useSystemCheck'
 
 const PublicSystemCheck = () => {
@@ -17,19 +17,25 @@ const PublicSystemCheck = () => {
     internetStatus,
     lastPingMs,
     canStart,
+    permissionLost,
+    errorMessage,
     testInternet,
     checkCameraAndMic,
     checkScreenShare,
+    stopScreenShare,
   } = useSystemCheck()
 
   const [isStarting, setIsStarting] = useState(false)
-  const [screenPromptVisible, setScreenPromptVisible] = useState(false)
+  const [isCheckingCamera, setIsCheckingCamera] = useState(false)
+  const [isCheckingScreen, setIsCheckingScreen] = useState(false)
   const [interviewData, setInterviewData] = useState(null)
+  const [showPermissionWarning, setShowPermissionWarning] = useState(false)
+
   const videoRef = useRef(null)
   const screenVideoRef = useRef(null)
 
+  // Load interview data
   useEffect(() => {
-    // Get interview data from localStorage
     const savedInterview = localStorage.getItem('currentInterview')
     if (!savedInterview) {
       toast.error('Interview session not found', {
@@ -42,6 +48,7 @@ const PublicSystemCheck = () => {
     setInterviewData(JSON.parse(savedInterview))
   }, [token, navigate])
 
+  // Setup video preview
   useEffect(() => {
     if (cameraStream && videoRef.current) {
       videoRef.current.srcObject = cameraStream
@@ -49,6 +56,7 @@ const PublicSystemCheck = () => {
     }
   }, [cameraStream])
 
+  // Setup screen preview
   useEffect(() => {
     if (screenStream && screenVideoRef.current) {
       screenVideoRef.current.srcObject = screenStream
@@ -56,33 +64,68 @@ const PublicSystemCheck = () => {
     }
   }, [screenStream])
 
+  // Test internet on load
   useEffect(() => {
     testInternet()
   }, [testInternet])
 
-  const statusBadge = (ready) => (
-    <div className="flex items-center gap-2">
-      {ready ? (
-        <CheckCircle className="text-green-600" size={20} />
-      ) : (
-        <AlertCircle className="text-red-600" size={20} />
-      )}
-      <span className={`text-sm font-medium ${ready ? 'text-green-700' : 'text-red-700'}`}>
-        {ready ? 'Ready' : 'Not ready'}
-      </span>
-    </div>
-  )
+  // Show warning when permission is lost
+  useEffect(() => {
+    if (permissionLost) {
+      setShowPermissionWarning(true)
+      toast.warning('⚠️ Permission lost! Please re-enable camera/microphone.', {
+        position: 'top-right',
+        autoClose: 5000,
+      })
+    }
+  }, [permissionLost])
 
-  const handleScreenCheckWithPrompt = () => {
-    setScreenPromptVisible(true)
+  const handleCameraCheck = async () => {
+    setIsCheckingCamera(true)
+    try {
+      const success = await checkCameraAndMic()
+      if (success) {
+        toast.success('✅ Camera and microphone enabled!', {
+          position: 'top-right',
+          autoClose: 2000,
+        })
+      }
+    } finally {
+      setIsCheckingCamera(false)
+    }
+  }
+
+  const handleScreenCheck = async () => {
+    setIsCheckingScreen(true)
+    try {
+      const success = await checkScreenShare()
+      if (success) {
+        toast.success('✅ Screen sharing enabled!', {
+          position: 'top-right',
+          autoClose: 2000,
+        })
+      } else if (errorMessage) {
+        toast.error(`❌ ${errorMessage}`, {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+      }
+    } finally {
+      setIsCheckingScreen(false)
+    }
   }
 
   const handleStartInterview = async () => {
-    if (!canStart) return
+    if (!canStart) {
+      toast.error('Please complete all system checks before starting', {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+      return
+    }
 
     setIsStarting(true)
     try {
-      // Proceed to interview screen
       navigate(`/interview/session/${token}/screen`)
     } catch (error) {
       toast.error('Failed to start interview', {
@@ -95,8 +138,11 @@ const PublicSystemCheck = () => {
 
   if (!interviewData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader className="animate-spin" size={40} />
+      <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex flex-col items-center gap-4">
+          <Loader className="animate-spin text-blue-600" size={40} />
+          <p className="text-gray-600">Loading interview session...</p>
+        </div>
       </div>
     )
   }
@@ -105,241 +151,249 @@ const PublicSystemCheck = () => {
     checking: 'Checking...',
     excellent: 'Excellent',
     good: 'Good',
-  }[internetStatus] || 'Poor'
+    poor: 'Poor',
+  }[internetStatus] || 'Unknown'
+
+  const statusBadge = (ready) => (
+    <div className="flex items-center gap-2">
+      {ready ? (
+        <>
+          <CheckCircle className="text-green-600" size={20} />
+          <span className="text-sm font-medium text-green-700">Ready</span>
+        </>
+      ) : (
+        <>
+          <AlertCircle className="text-red-600" size={20} />
+          <span className="text-sm font-medium text-red-700">Not ready</span>
+        </>
+      )}
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 py-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 overflow-hidden flex flex-col">
+      <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 overflow-hidden">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">System Check</h1>
-          <p className="text-gray-600">
+        <div className="mb-3">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">System Check</h1>
+          <p className="text-gray-600 text-sm">
             Let's make sure your setup is ready for the {interviewData.jobRole} interview
           </p>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left: Camera & Mic Preview */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="relative bg-black aspect-video flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  muted
-                  playsInline
-                />
-                {!cameraReady && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                    <p className="text-white text-center">Camera not detected</p>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">Camera & Microphone</p>
+        {/* Permission Lost Warning */}
+        {showPermissionWarning && permissionLost && (
+          <div className="mb-3 bg-red-50 border-2 border-red-300 rounded p-2 flex gap-2">
+            <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
+            <div>
+              <h3 className="font-semibold text-red-900 mb-0.5 text-sm">Permission Lost</h3>
+              <p className="text-red-800 text-xs">
+                Your camera, microphone, or screen share permission was lost. Please re-enable them.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message Display */}
+        {errorMessage && (
+          <div className="mb-3 bg-yellow-50 border-2 border-yellow-300 rounded p-2 flex gap-2">
+            <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={18} />
+            <div>
+              <h3 className="font-semibold text-yellow-900 mb-0.5 text-sm">Attention Required</h3>
+              <p className="text-yellow-800 text-xs">{errorMessage}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 overflow-hidden">
+          {/* Left: Camera Preview - Smaller */}
+          <div className="lg:col-span-1 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+            <div className="relative bg-black w-full aspect-square flex items-center justify-center flex-shrink-0">
+              <video
+                ref={videoRef}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+              />
+              {!cameraReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                  <p className="text-white text-center text-sm">Camera not detected</p>
+                </div>
+              )}
+            </div>
+            <div className="p-2 bg-gray-50 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1">
+                  <Video size={16} className={cameraReady ? 'text-green-600' : 'text-gray-400'} />
+                  <p className="text-gray-700 font-medium text-xs">Camera</p>
+                </div>
                 {statusBadge(cameraReady && micReady)}
               </div>
-            </div>
-
-            {/* Screen Share Preview */}
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="relative bg-gray-100 aspect-video flex items-center justify-center">
-                {screenReady ? (
-                  <video
-                    ref={screenVideoRef}
-                    className="w-full h-full object-cover"
-                    muted
-                    playsInline
-                  />
-                ) : (
-                  <div className="text-center">
-                    <p className="text-gray-600 mb-3">Screen sharing not enabled</p>
-                    <button
-                      onClick={() => {
-                        checkScreenShare()
-                        handleScreenCheckWithPrompt()
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-                    >
-                      Enable Screen Share
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="p-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-2">Screen Share</p>
-                {statusBadge(screenReady)}
-              </div>
+              <button
+                onClick={handleCameraCheck}
+                disabled={isCheckingCamera}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 flex items-center gap-1"
+              >
+                {isCheckingCamera && <Loader size={10} className="animate-spin" />}
+                Test
+              </button>
             </div>
           </div>
 
-          {/* Right: System Status */}
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">System Status</h2>
+          {/* Center: Screen Share Preview - Larger */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
+            <div className="relative bg-gray-100 w-full flex-1 flex items-center justify-center overflow-hidden">
+              {screenReady ? (
+                <video
+                  ref={screenVideoRef}
+                  className="w-full h-full object-contain"
+                  muted
+                  playsInline
+                />
+              ) : (
+                <div className="text-center p-4">
+                  <Share2 size={40} className="text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 mb-2 text-sm">Screen sharing not enabled</p>
+                  <p className="text-gray-500 text-xs mb-4">
+                    Share your entire screen for the interview
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="p-3 bg-gray-50 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Share2 size={18} className={screenReady ? 'text-green-600' : 'text-gray-400'} />
+                  <p className="text-gray-700 font-medium text-sm">Entire Screen Share</p>
+                </div>
+                {statusBadge(screenReady)}
+              </div>
+              <button
+                onClick={handleScreenCheck}
+                disabled={isCheckingScreen}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50 flex items-center gap-1"
+              >
+                {isCheckingScreen && <Loader size={12} className="animate-spin" />}
+                {screenReady ? 'Disable' : 'Enable Screen Share'}
+              </button>
+            </div>
+          </div>
 
-              {/* Internet Connection */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-gray-700 font-medium">Internet Connection</p>
+          {/* Right: Status Panel */}
+          <div className="lg:col-span-1 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-lg p-4">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">System Status</h2>
+
+              {/* Internet */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-700 font-medium text-sm">Internet Connection</p>
                   {statusBadge(internetStatus !== 'poor')}
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs text-gray-600">
                   {internetLabel}
                   {lastPingMs && ` • ${lastPingMs}ms`}
                 </p>
               </div>
 
-              {/* Camera */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-gray-700 font-medium">Camera</p>
+              {/* Camera Status */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-700 font-medium text-sm">Camera</p>
                   {statusBadge(cameraReady)}
                 </div>
                 <button
-                  onClick={checkCameraAndMic}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={handleCameraCheck}
+                  disabled={isCheckingCamera}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
                 >
-                  Test Camera
+                  {isCheckingCamera ? 'Testing...' : 'Test Camera'}
                 </button>
               </div>
 
-              {/* Microphone */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-gray-700 font-medium">Microphone</p>
+              {/* Microphone Status */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-700 font-medium text-sm">Microphone</p>
                   {statusBadge(micReady)}
                 </div>
                 <button
-                  onClick={checkCameraAndMic}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={handleCameraCheck}
+                  disabled={isCheckingCamera}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
                 >
-                  Test Microphone
+                  {isCheckingCamera ? 'Testing...' : 'Test Microphone'}
                 </button>
               </div>
 
-              {/* Screen Share */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-gray-700 font-medium">Screen Share</p>
+              {/* Screen Share Status */}
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-gray-700 font-medium text-sm">Screen Share</p>
                   {statusBadge(screenReady)}
                 </div>
                 <button
-                  onClick={() => {
-                    checkScreenShare()
-                    handleScreenCheckWithPrompt()
-                  }}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={handleScreenCheck}
+                  disabled={isCheckingScreen}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
                 >
-                  {screenReady ? 'Disable Screen Share' : 'Enable Screen Share'}
+                  {isCheckingScreen ? 'Configuring...' : 'Enable Screen Share'}
                 </button>
               </div>
 
               {/* Interview Details */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Interview Details</h3>
-                <div className="space-y-2 text-sm">
+              <div className="bg-blue-50 rounded p-3 mb-4">
+                <h3 className="font-semibold text-gray-900 mb-2 text-xs">Interview Details</h3>
+                <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Position:</span>
+                    <span className="text-gray-600">Position:</span>
                     <span className="font-medium text-gray-900">{interviewData.jobRole}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Type:</span>
+                    <span className="text-gray-600">Type:</span>
                     <span className="font-medium text-gray-900">{interviewData.interviewType}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Level:</span>
+                    <span className="text-gray-600">Level:</span>
                     <span className="font-medium text-gray-900">{interviewData.experienceLevel}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-700">Questions:</span>
+                    <span className="text-gray-600">Questions:</span>
                     <span className="font-medium text-gray-900">{interviewData.numberOfQuestions}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Start Interview Button */}
-              <div className="space-y-3">
-                <button
-                  onClick={() => navigate(`/interview/session/${token}/video`)}
-                  disabled={isStarting}
-                  className={`w-full py-3 rounded-lg font-semibold transition ${
-                    !isStarting
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  }`}
-                >
-                  {isStarting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader size={18} className="animate-spin" />
-                      Starting...
-                    </span>
-                  ) : (
-                    'Start with Video'
-                  )}
-                </button>
-
-                <button
-                  onClick={handleStartInterview}
-                  disabled={!canStart || isStarting}
-                  className={`w-full py-3 rounded-lg font-semibold transition ${
-                    canStart && !isStarting
-                      ? 'bg-green-600 text-white hover:bg-green-700'
-                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  }`}
-                >
-                  {isStarting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader size={18} className="animate-spin" />
-                      Starting...
-                    </span>
-                  ) : (
-                    'Start with Text'
-                  )}
-                </button>
-              </div>
+              {/* Start Button */}
+              <button
+                onClick={handleStartInterview}
+                disabled={!canStart || isStarting || permissionLost}
+                title={!canStart ? 'Complete all checks first' : ''}
+                className={`w-full py-2 rounded font-semibold transition text-sm ${
+                  canStart && !isStarting && !permissionLost
+                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                }`}
+              >
+                {isStarting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader size={14} className="animate-spin" />
+                    Starting...
+                  </span>
+                ) : (
+                  '🎥 Start Interview'
+                )}
+              </button>
 
               {!canStart && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    Please enable camera, microphone, and internet connection to proceed.
-                  </p>
-                </div>
+                <p className="text-xs text-gray-600 text-center mt-2">
+                  ⚠️ Complete all checks to start interview
+                </p>
               )}
             </div>
           </div>
         </div>
-
-        {/* Screen Share Prompt Modal */}
-        {screenPromptVisible && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl max-w-md w-full p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-3">Screen Share Permission</h3>
-              <p className="text-gray-600 mb-6">
-                This interview may require screen sharing. Your screen content will be visible to the
-                interviewer. You can disable it at any time.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setScreenPromptVisible(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-900 hover:bg-gray-50 transition font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    checkScreenShare()
-                    setScreenPromptVisible(false)
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  Enable
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
