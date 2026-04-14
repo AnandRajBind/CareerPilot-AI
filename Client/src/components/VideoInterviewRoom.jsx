@@ -200,7 +200,7 @@ const VideoInterviewRoom = () => {
                   isListening={interview.isListening}
                   isSpeaking={interview.isSpeaking}
                   readyForAnswer={interview.readyForAnswer}
-                  onPlayAgain={interview.playQuestion}
+                  onPlayAgain={interview.replayQuestion}
                   onStartAnswer={interview.startAnswer}
                   onStopAnswer={interview.stopAnswer}
                   disabled={interview.isInterviewComplete()}

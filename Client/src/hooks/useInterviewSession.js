@@ -11,8 +11,11 @@ export const useInterviewSession = (interviewData) => {
   const [isTakingResponse, setIsTakingResponse] = useState(false)
   const [shouldAskQuestion, setShouldAskQuestion] = useState(false)
   const [readyForAnswer, setReadyForAnswer] = useState(false)
+  const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(false)
+  
   const timerRef = useRef(null)
   const hasSubmittedRef = useRef(false)
+  const questionPlayedRef = useRef({}) // Track which questions have been spoken
 
   const { speak, isSpeaking, stop: stopSpeaking } = useSpeechSynthesis()
   const { startListening, stopListening, transcript: spokenText, reset: resetTranscript, isListening } = useSpeechRecognition()
@@ -42,11 +45,18 @@ export const useInterviewSession = (interviewData) => {
     return interviewData.questions[currentQuestionIndex]
   }, [interviewData?.questions, currentQuestionIndex])
 
-  // NEW: Play question (can be called multiple times)
-  const playQuestion = useCallback(() => {
+  // NEW: Play question (guards against repetition)
+  const playQuestion = useCallback((forceReplay = false) => {
     const question = getCurrentQuestion()
     if (!question) {
       console.warn('No question available to play')
+      return
+    }
+
+    // Guard: If question already played AND not forced replay, skip
+    if (questionPlayedRef.current[currentQuestionIndex] && !forceReplay) {
+      console.log(`✓ Q${currentQuestionIndex + 1} already spoken. Use "Listen Again" to replay.`)
+      setReadyForAnswer(true)
       return
     }
 
@@ -54,7 +64,7 @@ export const useInterviewSession = (interviewData) => {
 
     // Make sure no listening is happening
     if (isListening) {
-      console.log('Stopping active listening before replaying...')
+      console.log('Stopping active listening before playing...')
       stopListening()
     }
 
@@ -63,8 +73,15 @@ export const useInterviewSession = (interviewData) => {
 
     // Small delay to ensure previous speech is stopped
     setTimeout(() => {
+      setIsQuestionSpeaking(true)
       speak(question, { rate: 0.95 })
       setReadyForAnswer(false)
+      
+      // Mark question as played after speaking completes
+      setTimeout(() => {
+        questionPlayedRef.current[currentQuestionIndex] = true
+        setIsQuestionSpeaking(false)
+      }, 3000) // Adjust based on average question length
     }, 100)
   }, [getCurrentQuestion, currentQuestionIndex, speak, stopSpeaking, stopListening, isListening])
 
@@ -210,11 +227,19 @@ export const useInterviewSession = (interviewData) => {
       console.log(`📍 Moving from Q${currentQuestionIndex + 1} to Q${currentQuestionIndex + 2}`)
       resetTranscript()
       setReadyForAnswer(false)
+      // Clear the spoken flag for the upcoming question
       setCurrentQuestionIndex((prev) => prev + 1)
     } else {
       console.log('🎉 Interview complete!')
     }
   }, [currentQuestionIndex, interviewData?.questions?.length, resetTranscript])
+
+  const replayQuestion = useCallback(() => {
+    console.log(`🔁 User replaying Q${currentQuestionIndex + 1}`)
+    // Clear the spoken flag to allow replayable
+    questionPlayedRef.current[currentQuestionIndex] = false
+    playQuestion(true) // Force replay
+  }, [currentQuestionIndex, playQuestion])
 
   return {
     currentQuestionIndex,
@@ -228,7 +253,9 @@ export const useInterviewSession = (interviewData) => {
     timeElapsed,
     isListening,
     readyForAnswer,
+    isQuestionSpeaking,
     playQuestion,
+    replayQuestion,
     startAnswer,
     stopAnswer,
     skipQuestion,
