@@ -163,54 +163,54 @@ const InterviewSession = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+      <div className="w-full max-w-2xl">
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">C</span>
+          <div className="text-center mb-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center mx-auto mb-3">
+              <span className="text-white font-bold text-xl">C</span>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Interview Session</h1>
-            <p className="text-gray-600">Welcome to CareerPilot AI Interview</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">Interview Session</h1>
+            <p className="text-sm text-gray-600">Welcome to CareerPilot AI Interview</p>
           </div>
 
           {/* Interview Details */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 mb-8 border border-blue-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Interview Details</h2>
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 mb-4 border border-blue-200">
+            <h2 className="text-sm font-semibold text-gray-900 mb-2">Interview Details</h2>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-xs text-gray-600 uppercase font-medium mb-1">Role</p>
-                <p className="text-sm font-semibold text-gray-900">{templateInfo.jobRole}</p>
+                <p className="text-xs text-gray-600 uppercase font-medium mb-0.5">Role</p>
+                <p className="text-xs font-semibold text-gray-900">{templateInfo.jobRole}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 uppercase font-medium mb-1">Type</p>
-                <p className="text-sm font-semibold text-gray-900">{templateInfo.interviewType}</p>
+                <p className="text-xs text-gray-600 uppercase font-medium mb-0.5">Type</p>
+                <p className="text-xs font-semibold text-gray-900">{templateInfo.interviewType}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 uppercase font-medium mb-1">Level</p>
-                <p className="text-sm font-semibold text-gray-900">{templateInfo.experienceLevel}</p>
+                <p className="text-xs text-gray-600 uppercase font-medium mb-0.5">Level</p>
+                <p className="text-xs font-semibold text-gray-900">{templateInfo.experienceLevel}</p>
               </div>
               <div>
-                <p className="text-xs text-gray-600 uppercase font-medium mb-1">Difficulty</p>
-                <p className="text-sm font-semibold text-gray-900">{templateInfo.difficultyLevel}</p>
+                <p className="text-xs text-gray-600 uppercase font-medium mb-0.5">Difficulty</p>
+                <p className="text-xs font-semibold text-gray-900">{templateInfo.difficultyLevel}</p>
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-blue-200">
-              <p className="text-xs text-gray-600 uppercase font-medium mb-1">Questions</p>
-              <p className="text-sm font-semibold text-gray-900">{templateInfo.numberOfQuestions} questions</p>
+            <div className="mt-2 pt-2 border-t border-blue-200">
+              <p className="text-xs text-gray-600 uppercase font-medium mb-0.5">Questions</p>
+              <p className="text-xs font-semibold text-gray-900">{templateInfo.numberOfQuestions} questions</p>
             </div>
           </div>
 
           {/* Form */}
           {showForm && (
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-3">
               {/* Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Your Full Name *
                 </label>
                 <input
@@ -219,18 +219,18 @@ const InterviewSession = () => {
                   value={formData.candidateName}
                   onChange={handleChange}
                   placeholder="John Doe"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
                     errors.candidateName ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {errors.candidateName && (
-                  <p className="text-red-500 text-sm mt-1">{errors.candidateName}</p>
+                  <p className="text-red-500 text-xs mt-0.5">{errors.candidateName}</p>
                 )}
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Your Email Address *
                 </label>
                 <input
@@ -239,20 +239,19 @@ const InterviewSession = () => {
                   value={formData.candidateEmail}
                   onChange={handleChange}
                   placeholder="you@example.com"
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
+                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
                     errors.candidateEmail ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {errors.candidateEmail && (
-                  <p className="text-red-500 text-sm mt-1">{errors.candidateEmail}</p>
+                  <p className="text-red-500 text-xs mt-0.5">{errors.candidateEmail}</p>
                 )}
               </div>
 
               {/* Info */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-800">
-                  <span className="font-semibold">Note:</span> This interview will be recorded and evaluated using AI. 
-                  Please provide your details to get started.
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-900">
+                  <span className="font-semibold">📝 Note:</span> This interview will be recorded and evaluated using AI.
                 </p>
               </div>
 
@@ -260,7 +259,7 @@ const InterviewSession = () => {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition font-medium"
+                className="w-full bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 text-sm rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition font-semibold"
               >
                 {submitting ? 'Starting Interview...' : 'Start Interview'}
               </button>
@@ -268,7 +267,7 @@ const InterviewSession = () => {
           )}
 
           {/* Footer */}
-          <p className="text-center text-xs text-gray-500 mt-6">
+          <p className="text-center text-xs text-gray-500 mt-3 flex-shrink-0">
             © 2024 CareerPilot AI. All rights reserved.
           </p>
         </div>
