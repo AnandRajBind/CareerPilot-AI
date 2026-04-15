@@ -27,7 +27,7 @@ const AdminDashboard = () => {
 
         if (response.ok) {
           const data = await response.json()
-          const interviewsData = data.interviews || []
+          const interviewsData = data.data?.interviews || []
 
           // Calculate statistics
           const completed = interviewsData.filter((i) => i.status === 'completed')

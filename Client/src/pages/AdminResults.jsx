@@ -22,7 +22,7 @@ const AdminResults = () => {
   const fetchResults = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:9000/api/interviews', {
+      const response = await fetch('http://localhost:9000/api/interviews?status=completed', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -30,10 +30,11 @@ const AdminResults = () => {
 
       if (response.ok) {
         const data = await response.json()
-        const completed = (data.interviews || []).filter((i) => i.status === 'completed')
-        setInterviews(completed)
+        const interviews = data.data?.interviews || []
+        setInterviews(interviews)
       }
     } catch (error) {
+      console.error('Error fetching results:', error)
       toast.error('Failed to load results', {
         position: 'top-right',
         autoClose: 3000,
