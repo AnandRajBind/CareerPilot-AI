@@ -200,7 +200,6 @@ export default function InterviewResults() {
             </div>
           )}
         </div>
-
         {/* Model Answers Section */}
         {results.evaluation?.modelAnswer && (
           <div className="bg-white rounded-lg shadow-lg p-8 mb-8">

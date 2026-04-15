@@ -6,6 +6,8 @@ import AdminLayout from '../components/AdminLayout'
 const AdminBilling = () => {
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [selectedPlan, setSelectedPlan] = useState(null)
+  const [processingPlan, setProcessingPlan] = useState(null)
 
   useEffect(() => {
     fetchCompanyData()
@@ -42,8 +44,60 @@ const AdminBilling = () => {
     return today < endDate && company.isTrialActive
   }
 
+  const handlePlanSelect = async (planName) => {
+    if (!company) return
+
+    setProcessingPlan(planName)
+    try {
+      // Call backend API to update plan
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/upgrade-plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          planName: planName,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update plan')
+      }
+
+      const data = await response.json()
+
+      // Update localStorage with new company data
+      if (data.company) {
+        localStorage.setItem('company', JSON.stringify(data.company))
+        setCompany(data.company)
+      }
+
+      toast.success(`Successfully upgraded to ${planName} plan!`, {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+
+      setSelectedPlan(planName)
+    } catch (error) {
+      console.error('Plan upgrade error:', error)
+      toast.error(
+        error.message === 'Failed to update plan'
+          ? 'Failed to upgrade plan. Please try again.'
+          : 'An error occurred while upgrading your plan.',
+        {
+          position: 'top-right',
+          autoClose: 3000,
+        }
+      )
+    } finally {
+      setProcessingPlan(null)
+    }
+  }
+
   const plans = [
     {
+      id: 'starter',
       name: 'Starter',
       price: '$49',
       period: 'month',
@@ -58,6 +112,7 @@ const AdminBilling = () => {
       highlighted: false,
     },
     {
+      id: 'professional',
       name: 'Professional',
       price: '$149',
       period: 'month',
@@ -74,18 +129,21 @@ const AdminBilling = () => {
       highlighted: true,
     },
     {
-      name: 'Enterprise',
-      price: 'Custom',
+      id: 'team',
+      name: 'Team',
+      price: '$299',
       period: 'month',
-      description: 'For large organizations',
+      description: 'For mid-size teams',
       features: [
         'Everything in Professional',
-        'Custom integrations',
-        'Dedicated account manager',
-        'SLA guarantee',
-        'On-premise deployment option',
+        'Advanced analytics & insights',
+        'Up to 50 team members',
+        'Custom branding options',
+        'API access',
+        'Video interview recordings',
+        'Advanced reporting tools',
       ],
-      cta: 'Contact Sales',
+      cta: 'Select Plan',
       highlighted: false,
     },
   ]
@@ -182,8 +240,12 @@ const AdminBilling = () => {
                   Upgrade your plan to get access to advanced features and unlimited interviews.
                 </p>
               </div>
-              <button className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium whitespace-nowrap">
-                Upgrade Now
+              <button
+                onClick={() => handlePlanSelect('Professional')}
+                disabled={processingPlan === 'Professional'}
+                className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium whitespace-nowrap disabled:opacity-50"
+              >
+                {processingPlan === 'Professional' ? 'Processing...' : 'Upgrade Now'}
               </button>
             </div>
           </div>
@@ -230,13 +292,21 @@ const AdminBilling = () => {
 
                   {/* CTA Button */}
                   <button
+                    onClick={() => handlePlanSelect(plan.name)}
+                    disabled={processingPlan === plan.name || company?.plan === plan.id}
                     className={`w-full py-3 rounded-lg font-medium transition mb-6 ${
-                      plan.highlighted
-                        ? 'bg-primary text-white hover:bg-primary/90'
-                        : 'border border-gray-300 text-gray-900 hover:bg-gray-50'
-                    }`}
+                      company?.plan === plan.id
+                        ? 'bg-green-100 text-green-800 border border-green-300'
+                        : plan.highlighted
+                        ? 'bg-primary text-white hover:bg-primary/90 disabled:opacity-50'
+                        : 'border border-gray-300 text-gray-900 hover:bg-gray-50 disabled:opacity-50'
+                    } ${processingPlan === plan.name ? 'cursor-wait' : ''}`}
                   >
-                    {plan.cta}
+                    {processingPlan === plan.name
+                      ? 'Processing...'
+                      : company?.plan === plan.id
+                      ? '✓ Current Plan'
+                      : plan.cta}
                   </button>
 
                   {/* Features */}
