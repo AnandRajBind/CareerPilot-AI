@@ -79,6 +79,8 @@ const SystemCheck = () => {
   const handleStartInterview = async () => {
     if (!canStart) return
     if (currentInterview) {
+      // Save interview to localStorage for video interview room
+      localStorage.setItem('currentInterview', JSON.stringify(currentInterview))
       navigate('/interview-screen')
       return
     }
@@ -96,13 +98,19 @@ const SystemCheck = () => {
         numberOfQuestions,
       } = interviewConfig
 
-      await startInterview(
+      const interview = await startInterview(
         jobRole,
         experienceLevel,
         interviewType,
         difficultyLevel,
         numberOfQuestions
       )
+      
+      // Save interview to localStorage for video interview room
+      if (interview) {
+        console.log('💾 Saving interview to localStorage:', interview)
+        localStorage.setItem('currentInterview', JSON.stringify(interview))
+      }
 
       navigate('/interview-screen')
     } catch (err) {

@@ -5,15 +5,37 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function InterviewResults() {
   const navigate = useNavigate();
-  const { results, currentInterview, resetInterview, loading } = useInterview();
+  const { results: contextResults, currentInterview, resetInterview, loading } = useInterview();
   const { user } = useAuth();
   const [selectedTab, setSelectedTab] = useState('overview');
+  
+  // Load results from localStorage first, fallback to context
+  const [results, setResults] = useState(null);
 
   useEffect(() => {
-    if (!results) {k
+    // Try to load from localStorage first
+    const storedResults = localStorage.getItem('interviewResults');
+    if (storedResults) {
+      try {
+        const parsedResults = JSON.parse(storedResults);
+        setResults(parsedResults);
+        return
+      } catch (error) {
+        console.error('Error parsing stored results:', error)
+      }
+    }
+    
+    // Fallback to context results
+    if (contextResults) {
+      setResults(contextResults);
+      return
+    }
+    
+    // If no results found, redirect back
+    if (!loading) {
       navigate('/interview-mode');
     }
-  }, [results, navigate]);
+  }, [contextResults, loading, navigate]);
 
   if (!results || !currentInterview) {
     return (

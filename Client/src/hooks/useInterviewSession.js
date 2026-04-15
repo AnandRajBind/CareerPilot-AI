@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSpeechSynthesis } from './useSpeechSynthesis'
 import { useSpeechRecognition } from './useSpeechRecognition'
+import api from '../services/api'
 
 export const useInterviewSession = (interviewData) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -13,6 +14,9 @@ export const useInterviewSession = (interviewData) => {
   const [readyForAnswer, setReadyForAnswer] = useState(false)
   const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(false)
   const [answerSubmitError, setAnswerSubmitError] = useState('')
+  const [interviewStatus, setInterviewStatus] = useState('in-progress') // 'in-progress' | 'completed' | 'error'
+  const [completionResults, setCompletionResults] = useState(null)
+  const [isCompleting, setIsCompleting] = useState(false)
   
   const timerRef = useRef(null)
   const hasSubmittedRef = useRef(false)
@@ -86,6 +90,74 @@ export const useInterviewSession = (interviewData) => {
     }, 100)
   }, [getCurrentQuestion, currentQuestionIndex, speak, stopSpeaking, stopListening, isListening])
 
+  // NEW: Complete interview session and call API
+  const completeInterviewSession = useCallback(async (finalAnswers) => {
+    setIsCompleting(true)
+    console.log('🔄 Completing interview session...')
+    console.log('Interview data:', interviewData)
+    
+    try {
+      // Try multiple property names for interview ID
+      const interviewId = interviewData?._id || interviewData?.id || interviewData?.interviewId
+      
+      if (!interviewId) {
+        console.error('Interview data:', interviewData)
+        throw new Error('Interview ID not found. Available properties: ' + Object.keys(interviewData || {}).join(', '))
+      }
+
+      console.log(`Using interview ID: ${interviewId}`)
+
+      // Convert answers object to array in question order
+      const answersArray = Object.keys(finalAnswers)
+        .sort((a, b) => parseInt(a) - parseInt(b))
+        .map(key => finalAnswers[key])
+
+      console.log(`📤 Sending ${answersArray.length} answers to backend...`)
+      console.log('Answers array:', answersArray)
+      
+      // Validate all answers are strings and non-empty
+      const validAnswers = answersArray.filter(ans => ans && ans.trim().length > 0)
+      if (validAnswers.length !== answersArray.length) {
+        throw new Error('Some answers are empty')
+      }
+
+      const requestData = { answers: answersArray }
+      console.log('📋 Request body:', JSON.stringify(requestData))
+      
+      // Call API to complete interview - use /api/interviews (plural) endpoint
+      const response = await api.post(`/interviews/${interviewId}/complete`, requestData)
+
+      if (response.data.success) {
+        console.log('✅ Interview completed successfully!')
+        console.log('Response data:', response.data)
+        
+        // Store results for display
+        setCompletionResults(response.data.data)
+        setInterviewStatus('completed')
+        
+        // Store in localStorage for results page
+        localStorage.setItem('interviewResults', JSON.stringify(response.data.data))
+        
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Failed to complete interview')
+      }
+    } catch (error) {
+      console.error('❌ Error completing interview:', error)
+      if (error.response) {
+        console.error('Response status:', error.response.status)
+        console.error('Response data:', error.response.data)
+        console.error('Response headers:', error.response.headers)
+      }
+      console.error('Error message:', error.message)
+      setInterviewStatus('error')
+      setAnswerSubmitError(`Error: ${error.message}`)
+      throw error
+    } finally {
+      setIsCompleting(false)
+    }
+  }, [interviewData])
+
   // NEW: Submit answer (called automatically when recognition ends)
   // MUST be defined BEFORE startAnswer to avoid forward reference
   const submitAnswer = useCallback((finalTranscript) => {
@@ -145,10 +217,22 @@ export const useInterviewSession = (interviewData) => {
       // Update question index - this will trigger useEffect to auto-play
       setCurrentQuestionIndex(nextIndex)
     } else {
-      // Interview complete
-      console.log('🎉 Interview complete!')
+      // All questions answered - complete the interview
+      console.log('🎉 All questions answered! Completing interview...')
+      
+      // Update answers state with final answer
+      const updatedAnswers = {
+        ...answers,
+        [currentQuestionIndex]: userAnswer,
+      }
+      
+      // Call completeInterviewSession with ALL answers
+      completeInterviewSession(updatedAnswers).catch((error) => {
+        console.error('Failed to complete interview:', error)
+        setAnswerSubmitError('Failed to submit final answers. Please check your connection.')
+      })
     }
-  }, [currentQuestionIndex, getCurrentQuestion, interviewData?.questions?.length, resetTranscript, playQuestion])
+  }, [currentQuestionIndex, getCurrentQuestion, interviewData?.questions?.length, resetTranscript, playQuestion, answers, completeInterviewSession])
 
   // NEW: Start recording answer manually
   const startAnswer = useCallback(() => {
@@ -298,11 +382,15 @@ export const useInterviewSession = (interviewData) => {
     readyForAnswer,
     isQuestionSpeaking,
     answerSubmitError,
+    interviewStatus,
+    completionResults,
+    isCompleting,
     playQuestion,
     replayQuestion,
     startAnswer,
     stopAnswer,
     submitAnswer,
+    completeInterviewSession,
     skipQuestion,
     nextQuestion,
     getCurrentQuestionNumber,

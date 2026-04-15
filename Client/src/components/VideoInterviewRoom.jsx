@@ -43,12 +43,42 @@ const VideoInterviewRoom = () => {
     }
 
     const data = JSON.parse(savedInterview)
+    console.log('📋 Loaded interview data from localStorage:', data)
+    console.log('Interview ID available:', data?._id || data?.id || data?.interviewId)
+    
     setInterviewData(data)
     setIsLoading(false)
 
     // Start recording when interview starts
     startRecording()
   }, [token, navigate])
+
+  // Handle interview completion
+  useEffect(() => {
+    if (interview.interviewStatus === 'completed' && interview.completionResults) {
+      console.log('✅ Interview completed! Redirecting to results...')
+      
+      // Stop recording
+      stopRecording().then(() => {
+        // Show success toast
+        toast.success('🎉 Interview submitted successfully!', {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+        
+        // Redirect to results page after short delay
+        setTimeout(() => {
+          navigate('/interview-results')
+        }, 2000)
+      })
+    } else if (interview.interviewStatus === 'error') {
+      console.error('❌ Interview completion failed:', interview.answerSubmitError)
+      toast.error(`Failed to submit interview: ${interview.answerSubmitError}`, {
+        position: 'top-right',
+        autoClose: 5000,
+      })
+    }
+  }, [interview.interviewStatus, interview.completionResults, interview.answerSubmitError, navigate])
 
   // Start recording media
   const startRecording = () => {
