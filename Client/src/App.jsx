@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { AuthProvider } from './context/AuthContext'
@@ -28,6 +28,21 @@ import PublicInterviewScreen from './pages/PublicInterviewScreen'
 import PublicInterviewResults from './pages/PublicInterviewResults'
 import InterviewSuccess from './pages/InterviewSuccess'
 
+// Component to conditionally render navbar based on route
+const NavbarWrapper = () => {
+  const location = useLocation()
+  
+  // Hide navbar on interview pages (success, video, system-check, and session)
+  if (location.pathname === '/interview/success' || 
+      location.pathname.match(/^\/interview\/session\/.*\/video$/) ||
+      location.pathname.match(/^\/interview\/session\/.*\/system-check$/) ||
+      location.pathname.match(/^\/interview\/session\/[a-f0-9]+$/)) {
+    return null
+  }
+  
+  return <Navbar />
+}
+
 function App() {
   return (
     <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -35,7 +50,7 @@ function App() {
         <StreamProvider>
           <MediaProvider>
             <InterviewProvider>
-            <Navbar />
+            <NavbarWrapper />
             <main>
               <Routes>
                 <Route path="/" element={<Home />} />
