@@ -80,9 +80,15 @@ const VideoInterviewRoom = () => {
     if (!showSuccessDialog) return
     
     if (countdown <= 0) {
-      // Redirect to home page (browser security prevents auto-closing tabs)
+      // Save completion data to sessionStorage
+      sessionStorage.setItem('interviewCompletion', JSON.stringify({
+        completedAt: new Date().toISOString(),
+        interviewId: interview.completionResults?.interviewId,
+      }))
+      
+      // Redirect to success page
       setTimeout(() => {
-        window.location.href = '/'
+        navigate('/interview/success')
       }, 500)
       return
     }
@@ -92,7 +98,7 @@ const VideoInterviewRoom = () => {
     }, 1000)
     
     return () => clearInterval(timer)
-  }, [showSuccessDialog, countdown])
+  }, [showSuccessDialog, countdown, navigate, interview.completionResults])
 
   // Start recording media
   const startRecording = () => {
@@ -318,7 +324,6 @@ const VideoInterviewRoom = () => {
 
             {/* Countdown */}
             <div className="flex flex-col items-center mb-6">
-              <p className="text-gray-400 mb-2">Redirecting you to home in:</p>
               <div className="text-4xl font-bold text-green-400 font-mono">
                 {countdown}s
               </div>
@@ -330,14 +335,6 @@ const VideoInterviewRoom = () => {
               </div>
               <p className="text-xs text-gray-500 mt-2">You will be redirected automatically</p>
             </div>
-
-            {/* Manual Close Button */}
-            <button
-              onClick={() => window.location.href = '/'}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-all duration-200"
-            >
-              Go to Home Now
-            </button>
           </div>
         </div>
       )}

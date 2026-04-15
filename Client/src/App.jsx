@@ -26,6 +26,7 @@ import InterviewSession from './pages/InterviewSession'
 import PublicSystemCheck from './pages/PublicSystemCheck'
 import PublicInterviewScreen from './pages/PublicInterviewScreen'
 import PublicInterviewResults from './pages/PublicInterviewResults'
+import InterviewSuccess from './pages/InterviewSuccess'
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
                 <Route path="/interview/session/:token/video" element={<VideoInterviewRoom />} />
                 <Route path="/interview/session/:token/screen" element={<PublicInterviewScreen />} />
                 <Route path="/interview/session/:token/results" element={<PublicInterviewResults />} />
+                <Route path="/interview/success" element={<InterviewSuccess />} />
                 
                 {/* Company Admin Dashboard */}
                 <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
