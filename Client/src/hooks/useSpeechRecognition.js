@@ -108,6 +108,13 @@ export const useSpeechRecognition = () => {
       }
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       setIsListening(false)
+
+      // Call end callback with final transcript if provided
+      if (options.onRecognitionEnd) {
+        const finalAnswer = finalTranscriptRef.current.trim()
+        console.log(`📤 Calling onRecognitionEnd with transcript: "${finalAnswer.substring(0, 50)}..."`)
+        options.onRecognitionEnd(finalAnswer)
+      }
     }
 
     recognition.onerror = (event) => {

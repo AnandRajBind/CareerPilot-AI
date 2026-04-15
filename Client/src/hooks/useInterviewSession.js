@@ -12,6 +12,7 @@ export const useInterviewSession = (interviewData) => {
   const [shouldAskQuestion, setShouldAskQuestion] = useState(false)
   const [readyForAnswer, setReadyForAnswer] = useState(false)
   const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(false)
+  const [answerSubmitError, setAnswerSubmitError] = useState('')
   
   const timerRef = useRef(null)
   const hasSubmittedRef = useRef(false)
@@ -85,6 +86,70 @@ export const useInterviewSession = (interviewData) => {
     }, 100)
   }, [getCurrentQuestion, currentQuestionIndex, speak, stopSpeaking, stopListening, isListening])
 
+  // NEW: Submit answer (called automatically when recognition ends)
+  // MUST be defined BEFORE startAnswer to avoid forward reference
+  const submitAnswer = useCallback((finalTranscript) => {
+    console.log(`📤 Submitting answer for Q${currentQuestionIndex + 1}`)
+    setAnswerSubmitError('') // Clear any previous error
+
+    const question = getCurrentQuestion()
+    if (!question) return
+
+    // TRANSCRIPT SAFETY: Validate answer is not empty
+    const userAnswer = finalTranscript.trim()
+    
+    if (!userAnswer || userAnswer.length === 0) {
+      console.warn('⚠️ No answer detected - user must try again')
+      setAnswerSubmitError('No answer detected. Please try again.')
+      setIsTakingResponse(false)
+      setIsAnswering(false)
+      return
+    }
+
+    console.log(`✅ Answer submitted for Q${currentQuestionIndex + 1}: "${userAnswer.substring(0, 50)}..."`)
+
+    // Step 1: Save answer to state
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQuestionIndex]: userAnswer,
+    }))
+
+    // Step 2: Update transcript
+    setTranscript((prev) => {
+      const updated = [...prev]
+      if (updated.length > 0) {
+        updated[updated.length - 1].answer = userAnswer
+      }
+      return updated
+    })
+
+    setIsTakingResponse(false)
+    setIsAnswering(false)
+
+    // Step 3: Check if more questions exist
+    const totalQuestions = interviewData?.questions?.length || 0
+    const nextIndex = currentQuestionIndex + 1
+
+    if (nextIndex < totalQuestions) {
+      // Step 4: Move to next question
+      console.log(`📍 Moving from Q${currentQuestionIndex + 1} to Q${nextIndex + 1}`)
+      resetTranscript()
+      setReadyForAnswer(false)
+      
+      // IMPORTANT: Clear the played flag for the new question BEFORE state update
+      questionPlayedRef.current[nextIndex] = false
+      
+      // Set flag to trigger auto-play useEffect
+      hasSubmittedRef.current = true
+      
+      // Update question index - this will trigger useEffect to auto-play
+      setCurrentQuestionIndex(nextIndex)
+    } else {
+      // Interview complete
+      console.log('🎉 Interview complete!')
+    }
+  }, [currentQuestionIndex, getCurrentQuestion, interviewData?.questions?.length, resetTranscript, playQuestion])
+
   // NEW: Start recording answer manually
   const startAnswer = useCallback(() => {
     if (!getCurrentQuestion()) {
@@ -109,6 +174,8 @@ export const useInterviewSession = (interviewData) => {
 
       const success = startListening({
         lang: 'en-US',
+        // Pass callback to auto-submit when recognition ends
+        onRecognitionEnd: submitAnswer,
       })
 
       if (!success) {
@@ -117,39 +184,15 @@ export const useInterviewSession = (interviewData) => {
         setIsAnswering(false)
       }
     }, 100)
-  }, [getCurrentQuestion, currentQuestionIndex, isSpeaking, stopSpeaking, startListening, resetTranscript])
+  }, [getCurrentQuestion, currentQuestionIndex, isSpeaking, stopSpeaking, startListening, resetTranscript, submitAnswer])
 
-  // NEW: Stop recording answer manually
+  // NEW: Stop recording answer manually (ONLY stops recognition)
   const stopAnswer = useCallback(() => {
-    console.log(`⏹️ User stopping answer for Q${currentQuestionIndex + 1}`)
-
+    console.log(`⏹️ User clicked Stop Answer for Q${currentQuestionIndex + 1}`)
+    // Stop speech recognition ONLY
+    // Submission happens automatically via submitAnswer callback when recognition ends
     stopListening()
-    setIsAnswering(false)
-    setIsTakingResponse(false)
-
-    // Save the answer
-    const question = getCurrentQuestion()
-    if (!question) return
-
-    const userAnswer = spokenText.trim() || '[NO RESPONSE]'
-    console.log(`✅ Answer saved for Q${currentQuestionIndex + 1}: "${userAnswer.substring(0, 50)}..."`)
-
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: userAnswer,
-    }))
-
-    // Update transcript
-    setTranscript((prev) => {
-      const updated = [...prev]
-      if (updated.length > 0) {
-        updated[updated.length - 1].answer = userAnswer
-      }
-      return updated
-    })
-
-    hasSubmittedRef.current = true
-  }, [stopListening, spokenText, currentQuestionIndex, getCurrentQuestion])
+  }, [stopListening, currentQuestionIndex])
 
   // Auto-ask first question when interview loads
   useEffect(() => {
@@ -254,10 +297,12 @@ export const useInterviewSession = (interviewData) => {
     isListening,
     readyForAnswer,
     isQuestionSpeaking,
+    answerSubmitError,
     playQuestion,
     replayQuestion,
     startAnswer,
     stopAnswer,
+    submitAnswer,
     skipQuestion,
     nextQuestion,
     getCurrentQuestionNumber,
