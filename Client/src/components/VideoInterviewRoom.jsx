@@ -7,6 +7,7 @@ import QuestionCaption from './QuestionCaption'
 import ListeningIndicator from './ListeningIndicator'
 import TranscriptPanel from './TranscriptPanel'
 import CandidateVideo from './CandidateVideo'
+import DraggableVideo from './DraggableVideo'
 import InterviewControls from './InterviewControls'
 import InterviewProgress from './InterviewProgress'
 import InterviewAnswerControls from './InterviewAnswerControls'
@@ -99,6 +100,30 @@ const VideoInterviewRoom = () => {
     
     return () => clearInterval(timer)
   }, [showSuccessDialog, countdown, navigate, interview.completionResults])
+
+  // Handle microphone toggle - mute/unmute audio tracks
+  useEffect(() => {
+    if (cameraStream) {
+      cameraStream.getAudioTracks().forEach((track) => {
+        track.enabled = isMicEnabled
+      })
+    }
+    
+    // If mic is disabled and currently listening, stop listening
+    if (!isMicEnabled && interview.isListening) {
+      console.log('⏹️ Stopping listening because microphone was disabled')
+      interview.stopAnswer()
+    }
+  }, [isMicEnabled, cameraStream, interview])
+
+  // Handle video toggle - disable/enable video tracks
+  useEffect(() => {
+    if (cameraStream) {
+      cameraStream.getVideoTracks().forEach((track) => {
+        track.enabled = isVideoEnabled
+      })
+    }
+  }, [isVideoEnabled, cameraStream])
 
   // Start recording media
   const startRecording = () => {
@@ -254,6 +279,13 @@ const VideoInterviewRoom = () => {
                   onStartAnswer={interview.startAnswer}
                   onStopAnswer={interview.stopAnswer}
                   disabled={interview.isInterviewComplete()}
+                  isMicEnabled={isMicEnabled}
+                  onMicDisabledAttempt={() => {
+                    toast.warning('Microphone is disabled. Enable it to record answers.', {
+                      position: 'top-right',
+                      autoClose: 2000,
+                    })
+                  }}
                 />
 
                 <ListeningIndicator
@@ -283,10 +315,8 @@ const VideoInterviewRoom = () => {
               <TranscriptPanel transcript={interview.transcript} />
             </div>
 
-            {/* Floating Candidate Video */}
-            <div className="absolute top-4 right-4 z-10">
-              <CandidateVideo stream={cameraStream} isRecording={isRecording} />
-            </div>
+            {/* Floating Candidate Video - Draggable and Resizable */}
+            <DraggableVideo stream={cameraStream} isRecording={isRecording} />
           </div>
         </div>
       </div>

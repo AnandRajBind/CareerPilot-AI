@@ -46,11 +46,12 @@ const InterviewControls = ({
           {/* Camera */}
           <button
             onClick={onVideoToggle}
+            disabled={isTakingResponse}
             className={`p-3 rounded-full transition ${
               isVideoEnabled
                 ? 'bg-gray-700 hover:bg-gray-600 text-white'
                 : 'bg-red-600 hover:bg-red-700 text-white'
-            }`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
             title={isVideoEnabled ? 'Disable camera' : 'Enable camera'}
           >
             {isVideoEnabled ? <Video size={20} /> : <VideoOff size={20} />}

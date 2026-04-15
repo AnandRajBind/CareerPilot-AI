@@ -9,6 +9,8 @@ const InterviewAnswerControls = ({
   onStartAnswer,
   onStopAnswer,
   disabled = false,
+  isMicEnabled = true,
+  onMicDisabledAttempt,
 }) => {
   return (
     <div className="flex gap-3 justify-center mb-4 flex-wrap">
@@ -26,12 +28,19 @@ const InterviewAnswerControls = ({
       {/* Start Answer Button */}
       {!isListening && (
         <button
-          onClick={onStartAnswer}
-          disabled={disabled || isSpeaking || isListening}
+          onClick={() => {
+            if (!isMicEnabled) {
+              if (onMicDisabledAttempt) onMicDisabledAttempt()
+              return
+            }
+            onStartAnswer()
+          }}
+          disabled={disabled || isSpeaking || isListening || !isMicEnabled}
           className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition font-medium"
-          title="Start recording your answer"
+          title={!isMicEnabled ? "Enable microphone to start answering" : "Start recording your answer"}
         >
-          <Mic size={18} />
+          {!isMicEnabled && <MicOff size={18} />}
+          {isMicEnabled && <Mic size={18} />}
           <span>Start Answer</span>
         </button>
       )}
