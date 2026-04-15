@@ -23,7 +23,7 @@ export const useInterviewSession = (interviewData) => {
   const questionPlayedRef = useRef({}) // Track which questions have been spoken
 
   const { speak, isSpeaking, stop: stopSpeaking } = useSpeechSynthesis()
-  const { startListening, stopListening, transcript: spokenText, reset: resetTranscript, isListening } = useSpeechRecognition()
+  const { startListening, stopListening, transcript: spokenText, reset: resetTranscript, isListening, audioStream } = useSpeechRecognition()
 
   // Timer Management
   useEffect(() => {
@@ -379,6 +379,7 @@ export const useInterviewSession = (interviewData) => {
     spokenText,
     timeElapsed,
     isListening,
+    audioStream,
     readyForAnswer,
     isQuestionSpeaking,
     answerSubmitError,

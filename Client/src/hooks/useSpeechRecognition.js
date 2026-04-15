@@ -3,6 +3,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
+  const [audioStream, setAudioStream] = useState(null)
   const [isSupported] = useState(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     return !!SpeechRecognition
@@ -12,12 +13,30 @@ export const useSpeechRecognition = () => {
   const timeoutRef = useRef(null)
   const retryCountRef = useRef(0)
   const maxRetriesRef = useRef(3)
+  const audioStreamRef = useRef(null)
 
   const startListening = useCallback((options = {}) => {
     if (!isSupported) {
       console.warn('⚠️ Speech Recognition not supported in this browser')
       return false
     }
+
+    // Get microphone stream for audio analysis
+    const getAudioStream = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        audioStreamRef.current = stream
+        setAudioStream(stream)
+        console.log('🎤 Microphone stream obtained for audio analysis')
+        return stream
+      } catch (error) {
+        console.warn('⚠️ Could not get microphone stream for visualization:', error)
+        return null
+      }
+    }
+
+    // Start getting the audio stream
+    getAudioStream()
 
     // Clean up previous recognition
     if (recognitionRef.current) {
@@ -167,6 +186,17 @@ export const useSpeechRecognition = () => {
         console.log('Error stopping:', e)
       }
     }
+    
+    // Stop all audio tracks
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => {
+        track.stop()
+      })
+      audioStreamRef.current = null
+      setAudioStream(null)
+      console.log('🎤 Audio stream stopped')
+    }
+    
     setIsListening(false)
   }, [])
 
@@ -189,6 +219,7 @@ export const useSpeechRecognition = () => {
     reset,
     isListening,
     transcript,
+    audioStream,
     isSupported,
   }
 }

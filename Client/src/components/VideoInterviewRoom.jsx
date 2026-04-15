@@ -239,6 +239,7 @@ const VideoInterviewRoom = () => {
                 <ListeningIndicator
                   isListening={interview.isListening}
                   transcript={interview.spokenText}
+                  audioStream={interview.audioStream}
                 />
               </>
             )}

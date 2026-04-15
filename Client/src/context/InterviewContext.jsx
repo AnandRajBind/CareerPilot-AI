@@ -11,7 +11,10 @@ export const InterviewProvider = ({ children }) => {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [questionAnswers, setQuestionAnswers] = useState({}); // To store individual question evaluations
+  const [questionAnswers, setQuestionAnswers] = useState({});
+  const [isListening, setIsListening] = useState(false);
+  const [spokenText, setSpokenText] = useState('');
+  const [audioStream, setAudioStream] = useState(null); // To store individual question evaluations
 
   const startInterview = useCallback(async (jobRole, experienceLevel, interviewType, difficultyLevel, numberOfQuestions) => {
     setLoading(true);
@@ -111,6 +114,9 @@ export const InterviewProvider = ({ children }) => {
     setResults(null);
     setError(null);
     setQuestionAnswers({});
+    setIsListening(false);
+    setSpokenText('');
+    setAudioStream(null);
   }, []);
 
   const value = {
@@ -124,6 +130,12 @@ export const InterviewProvider = ({ children }) => {
     loading,
     error,
     questionAnswers,
+    isListening,
+    setIsListening,
+    spokenText,
+    setSpokenText,
+    audioStream,
+    setAudioStream,
 
     // Methods
     startInterview,
