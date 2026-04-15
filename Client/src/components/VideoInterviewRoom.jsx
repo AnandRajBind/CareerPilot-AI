@@ -24,6 +24,8 @@ const VideoInterviewRoom = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true)
   const [isRecording, setIsRecording] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState('good')
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [countdown, setCountdown] = useState(5)
   const mediaRecorderRef = useRef(null)
   const recordedChunksRef = useRef([])
 
@@ -56,20 +58,13 @@ const VideoInterviewRoom = () => {
   // Handle interview completion
   useEffect(() => {
     if (interview.interviewStatus === 'completed' && interview.completionResults) {
-      console.log('✅ Interview completed! Redirecting to results...')
+      console.log('✅ Interview completed! Showing success dialog...')
       
       // Stop recording
       stopRecording().then(() => {
-        // Show success toast
-        toast.success('🎉 Interview submitted successfully!', {
-          position: 'top-right',
-          autoClose: 3000,
-        })
-        
-        // Redirect to results page after short delay
-        setTimeout(() => {
-          navigate('/interview-results')
-        }, 2000)
+        // Show success dialog
+        setShowSuccessDialog(true)
+        setCountdown(5)
       })
     } else if (interview.interviewStatus === 'error') {
       console.error('❌ Interview completion failed:', interview.answerSubmitError)
@@ -78,7 +73,26 @@ const VideoInterviewRoom = () => {
         autoClose: 5000,
       })
     }
-  }, [interview.interviewStatus, interview.completionResults, interview.answerSubmitError, navigate])
+  }, [interview.interviewStatus, interview.completionResults, interview.answerSubmitError])
+
+  // Handle success dialog countdown
+  useEffect(() => {
+    if (!showSuccessDialog) return
+    
+    if (countdown <= 0) {
+      // Redirect to home page (browser security prevents auto-closing tabs)
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
+      return
+    }
+    
+    const timer = setInterval(() => {
+      setCountdown(prev => prev - 1)
+    }, 1000)
+    
+    return () => clearInterval(timer)
+  }, [showSuccessDialog, countdown])
 
   // Start recording media
   const startRecording = () => {
@@ -282,6 +296,51 @@ const VideoInterviewRoom = () => {
         onSkipQuestion={interview.skipQuestion}
         connectionStatus={connectionStatus}
       />
+
+      {/* Success Dialog */}
+      {showSuccessDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-md border-2 border-green-500 shadow-2xl animate-bounceIn">
+            {/* Success Icon */}
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-4xl">✅</span>
+              </div>
+            </div>
+
+            {/* Message */}
+            <h2 className="text-2xl font-bold text-center text-white mb-2">
+              Interview Submitted Successfully!
+            </h2>
+            <p className="text-center text-gray-300 mb-6">
+              Thank you for completing the interview. Your responses have been recorded and will be evaluated shortly.
+            </p>
+
+            {/* Countdown */}
+            <div className="flex flex-col items-center mb-6">
+              <p className="text-gray-400 mb-2">Redirecting you to home in:</p>
+              <div className="text-4xl font-bold text-green-400 font-mono">
+                {countdown}s
+              </div>
+              <div className="mt-4 w-full bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-1000"
+                  style={{ width: `${(countdown / 5) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-2">You will be redirected automatically</p>
+            </div>
+
+            {/* Manual Close Button */}
+            <button
+              onClick={() => window.location.href = '/'}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg transition-all duration-200"
+            >
+              Go to Home Now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
