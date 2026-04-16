@@ -240,13 +240,18 @@ const completeInterview = async (req, res, next) => {
 
     // Store evaluation in interview
     interview.evaluation = {
-      score: finalEvaluation.score,
+      score: finalEvaluation.score || 0, // Ensure score is always set (default 0 if missing)
       strengths: finalEvaluation.strengths,
       weaknesses: finalEvaluation.weaknesses,
       suggestions: finalEvaluation.suggestions,
       modelAnswer: "", // Not applicable for final evaluation
       interviewTips: finalEvaluation.interviewTips,
     };
+
+    // Validate score exists before marking as completed
+    if (interview.evaluation.score === null || interview.evaluation.score === undefined) {
+      return next(buildError("Evaluation score is missing", 400));
+    }
 
     interview.status = "completed";
     await interview.save();

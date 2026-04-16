@@ -170,7 +170,12 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {interview.evaluation?.score ? `${interview.evaluation.score}%` : '—'}
+                        {interview.status === 'completed' && interview.evaluation?.score !== null && interview.evaluation?.score !== undefined
+                          ? `${interview.evaluation.score}%`
+                          : interview.status === 'completed'
+                          ? '⚠ No Score' // Completed but no evaluation
+                          : '—'
+                        }
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {interview.createdAt
