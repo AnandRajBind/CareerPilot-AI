@@ -111,6 +111,68 @@ const interviewSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // ============ PRODUCTION READINESS FIELDS ============
+    // Session Management for Public Interviews
+    sessionStatus: {
+      type: String,
+      enum: {
+        values: ["available", "locked", "in_progress", "completed", "expired"],
+        message: "Session status must be one of: available, locked, in_progress, completed, expired",
+      },
+      default: "available",
+      index: true,
+    },
+    // Candidate fingerprint/identifier to lock session
+    sessionLockedBy: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    // Session lock timestamp for timeout tracking
+    sessionStartedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    // Last activity timestamp for timeout protection
+    sessionLastActivity: {
+      type: Date,
+      default: null,
+    },
+    // Duplicate submission protection
+    submissionId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    // Reference back to template token for session linking
+    templateToken: {
+      type: String,
+      index: true,
+      default: null,
+    },
+    // Session timeout configuration (minutes)
+    sessionTimeoutMinutes: {
+      type: Number,
+      default: 30,
+    },
+    // Save current question index for resume
+    currentQuestionIndex: {
+      type: Number,
+      default: 0,
+    },
+    // Snapshot of answers for resume capability
+    answersSnapshot: {
+      type: Map,
+      of: String,
+      default: new Map(),
+    },
+    // Transcript snapshot for resume capability
+    transcriptSnapshot: {
+      type: String,
+      default: "",
+    },
+    // ====================================================
     createdAt: {
       type: Date,
       default: Date.now,
@@ -127,5 +189,11 @@ const interviewSchema = new mongoose.Schema(
 interviewSchema.index({ companyId: 1, createdAt: -1 });
 interviewSchema.index({ jobRole: 1 });
 interviewSchema.index({ status: 1 });
+
+// Production readiness indexes
+interviewSchema.index({ sessionStatus: 1, sessionStartedAt: 1 }); // For timeout cleanup
+interviewSchema.index({ sessionLockedBy: 1, templateToken: 1 }); // For session locking
+interviewSchema.index({ templateToken: 1, isTemplateBasedInterview: 1 }); // For public interviews
+interviewSchema.index({ sessionLastActivity: 1 }); // For timeout expiration
 
 module.exports = mongoose.model("Interview", interviewSchema);

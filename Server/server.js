@@ -7,6 +7,7 @@ const rateLimit = require("express-rate-limit");
 
 const { connectDB } = require("./config/database");
 const errorHandler = require("./middleware/errorHandler");
+const { initializeCronJobs } = require("./utils/cronJobs"); // Production cron jobs
 
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
@@ -78,6 +79,9 @@ app.use(errorHandler);
 const startServer = async () => {
   try {
     await connectDB();
+
+    // Initialize production cron jobs
+    initializeCronJobs();
 
     app.listen(PORT, () => {
       console.log(`

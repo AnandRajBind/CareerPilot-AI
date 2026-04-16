@@ -21,10 +21,13 @@ const AdminDashboard = () => {
       try {
         const token = localStorage.getItem('token')
         
-        // Fetch interviews
-        const response = await fetch('http://localhost:9000/api/interviews', {
+        // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
+        // Fetch interviews with cache-busting timestamp
+        const response = await fetch(`http://localhost:9000/api/interviews?t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
           },
         })
 
@@ -43,7 +46,7 @@ const AdminDashboard = () => {
             averageScore: avgScore,
           })
 
-          // Get recent interviews
+          // Get recent interviews (both authenticated and public template-based)
           setInterviews(interviewsData.slice(0, 5))
         }
       } catch (error) {
@@ -53,7 +56,13 @@ const AdminDashboard = () => {
       }
     }
 
+    // ===== PRODUCTION READINESS: Auto-refresh dashboard every 30 seconds =====
     fetchDashboardData()
+
+    // Auto-refresh interval
+    const refreshInterval = setInterval(fetchDashboardData, 30000) // 30 seconds
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
   return (

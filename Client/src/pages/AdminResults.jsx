@@ -19,37 +19,47 @@ const AdminResults = () => {
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
   useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        
+        // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
+        const response = await fetch(`http://localhost:9000/api/interviews?status=completed&t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const interviews = data.data?.interviews || []
+          setInterviews(interviews)
+        }
+      } catch (error) {
+        console.error('Error fetching results:', error)
+        toast.error('Failed to load results', {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    // ===== PRODUCTION READINESS: Auto-refresh results every 30 seconds =====
     fetchResults()
+
+    // Auto-refresh interval
+    const refreshInterval = setInterval(fetchResults, 30000) // 30 seconds
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
   useEffect(() => {
     filterAndSortResults()
   }, [interviews, searchTerm, sortBy, selectedRole, scoreRange, dateRange])
-
-  const fetchResults = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:9000/api/interviews?status=completed', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        const interviews = data.data?.interviews || []
-        setInterviews(interviews)
-      }
-    } catch (error) {
-      console.error('Error fetching results:', error)
-      toast.error('Failed to load results', {
-        position: 'top-right',
-        autoClose: 3000,
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const filterAndSortResults = () => {
     let filtered = interviews

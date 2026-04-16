@@ -86,6 +86,10 @@ const InterviewSession = () => {
     setSubmitting(true)
 
     try {
+      // ===== PRODUCTION READINESS: Generate Session Fingerprint =====
+      // Creates unique identifier for this browser/device session
+      const sessionFingerprint = `fp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
       const response = await fetch(`http://localhost:9000/api/interview/session/${token}/start`, {
         method: 'POST',
         headers: {
@@ -94,16 +98,31 @@ const InterviewSession = () => {
         body: JSON.stringify({
           candidateName: formData.candidateName,
           candidateEmail: formData.candidateEmail,
+          sessionFingerprint, // Send fingerprint for resume capability
         }),
       })
 
       if (response.ok) {
         const data = await response.json()
-        
-        // Store interview data in localStorage
+
+        // Check for session locked (409) response
+        if (response.status === 409) {
+          toast.error(
+            'This interview session is already in progress. Please wait or contact support.',
+            {
+              position: 'top-right',
+              autoClose: 3000,
+            }
+          )
+          return
+        }
+
+        // ===== PRODUCTION READINESS: Store Session Management Data =====
+        // Store interview data in localStorage (persistent)
         localStorage.setItem(
           'currentInterview',
           JSON.stringify({
+            sessionId: data.data.sessionId, // Add sessionId
             interviewId: data.data.interviewId,
             questions: data.data.questions,
             numberOfQuestions: data.data.numberOfQuestions,
@@ -114,6 +133,11 @@ const InterviewSession = () => {
             isTemplateBasedInterview: true,
           })
         )
+
+        // Store session-specific data in sessionStorage (cleared on browser close)
+        sessionStorage.setItem('sessionLockId', data.data.sessionLockId) // For security
+        sessionStorage.setItem('interviewId', data.data.interviewId) // For resume
+        sessionStorage.setItem('sessionFingerprint', sessionFingerprint) // For resume
 
         // Store candidate info
         localStorage.setItem(
@@ -132,10 +156,22 @@ const InterviewSession = () => {
         setTimeout(() => navigate(`/interview/session/${token}/system-check`), 2000)
       } else {
         const error = await response.json()
-        toast.error(error.message || 'Failed to start interview', {
-          position: 'top-right',
-          autoClose: 3000,
-        })
+
+        // Handle session already in progress
+        if (error.code === 'SESSION_LOCKED' || response.status === 409) {
+          toast.error(
+            'This interview session is already in progress by another candidate. Please try again or contact support.',
+            {
+              position: 'top-right',
+              autoClose: 3000,
+            }
+          )
+        } else {
+          toast.error(error.message || 'Failed to start interview', {
+            position: 'top-right',
+            autoClose: 3000,
+          })
+        }
       }
     } catch (error) {
       toast.error('An error occurred. Please try again.', {

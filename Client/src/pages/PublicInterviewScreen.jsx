@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { ChevronRight, ChevronLeft, Volume2, Phone, SkipForward, Loader } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Volume2, Phone, SkipForward, Loader, AlertCircle } from 'lucide-react'
 import { speakText } from '../utils/speechUtils'
 import VoiceRecorder from '../components/VoiceRecorder'
 import VideoRecorder from '../components/VideoRecorder'
 import { useMedia } from '../context/MediaContext'
+import { retryWithBackoff, retryInterviewSubmission } from '../services/retryService'
 
 const PublicInterviewScreen = () => {
   const { token } = useParams()
@@ -13,6 +14,7 @@ const PublicInterviewScreen = () => {
   const { cameraStream, microphoneTrack } = useMedia()
 
   const [interviewData, setInterviewData] = useState(null)
+  const [sessionLockId, setSessionLockId] = useState(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -21,20 +23,121 @@ const PublicInterviewScreen = () => {
   const [timeLeft, setTimeLeft] = useState(300) // 5 minutes
   const [showVideo, setShowVideo] = useState(false)
   const [recordedVideo, setRecordedVideo] = useState(null)
+  const [isResuming, setIsResuming] = useState(false)
+  const [retryingSubmission, setRetryingSubmission] = useState(false)
+  const sessionTimeoutRef = useRef(null)
 
+  // ===== PRODUCTION READINESS: Session Recovery on Mount =====
   useEffect(() => {
-    // Get interview data from localStorage
-    const savedInterview = localStorage.getItem('currentInterview')
-    if (!savedInterview) {
-      toast.error('Interview session not found', {
-        position: 'top-right',
-        autoClose: 3000,
-      })
-      navigate(`/interview/session/${token}`)
-      return
+    const loadOrResumeSession = async () => {
+      try {
+        // Try to get saved interview data
+        const savedInterview = localStorage.getItem('currentInterview')
+        const savedSessionLockId = sessionStorage.getItem('sessionLockId')
+        const savedInterviewId = sessionStorage.getItem('interviewId')
+
+        if (!savedInterview) {
+          toast.error('Interview session not found', {
+            position: 'top-right',
+            autoClose: 3000,
+          })
+          navigate(`/interview/session/${token}`)
+          return
+        }
+
+        const interviewDataParsed = JSON.parse(savedInterview)
+        setInterviewData(interviewDataParsed)
+        setSessionLockId(savedSessionLockId)
+
+        // If we have a session lock ID, try to resume from server
+        if (savedSessionLockId && savedInterviewId) {
+          setIsResuming(true)
+          try {
+            const resumeResponse = await fetch(
+              `http://localhost:9000/api/interview/session/${savedInterviewId}/resume?sessionLockId=${savedSessionLockId}`
+            )
+
+            if (resumeResponse.ok) {
+              const resumeData = await resumeResponse.json()
+              if (resumeData.data) {
+                // Restore state from server
+                setCurrentQuestionIndex(resumeData.data.currentQuestionIndex || 0)
+                setAnswers(resumeData.data.answers || {})
+
+                toast.success(
+                  `Resuming from question ${resumeData.data.currentQuestionIndex + 1}`,
+                  {
+                    position: 'top-right',
+                    autoClose: 2000,
+                  }
+                )
+              }
+            } else if (resumeResponse.status === 410) {
+              // Session expired
+              toast.error('Interview session has expired. Please start a new one.', {
+                position: 'top-right',
+                autoClose: 3000,
+              })
+              navigate(`/interview/session/${token}`)
+              return
+            }
+          } catch (error) {
+            console.warn('Could not resume from server, using local state:', error)
+            // Fall back to localStorage if resume fails
+            const savedAnswers = localStorage.getItem('interviewAnswers')
+            if (savedAnswers) {
+              setAnswers(JSON.parse(savedAnswers))
+            }
+          }
+          setIsResuming(false)
+        }
+      } catch (error) {
+        console.error('Error loading session:', error)
+        toast.error('Failed to load interview session', {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+      }
     }
-    setInterviewData(JSON.parse(savedInterview))
+
+    loadOrResumeSession()
   }, [token, navigate])
+
+  // ===== PRODUCTION READINESS: Session Timeout Protection =====
+  useEffect(() => {
+    if (!interviewData || !sessionLockId) return
+
+    // Reset timeout on activity
+    const resetTimeout = () => {
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current)
+      }
+
+      // Set 30-minute timeout
+      sessionTimeoutRef.current = setTimeout(() => {
+        toast.error('Interview session has expired due to inactivity.', {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+        navigate(`/interview/session/${token}`)
+      }, 30 * 60 * 1000)
+    }
+
+    resetTimeout()
+
+    // Reset on any user activity
+    const handleActivity = () => resetTimeout()
+    document.addEventListener('click', handleActivity)
+    document.addEventListener('keypress', handleActivity)
+
+    return () => {
+      document.removeEventListener('click', handleActivity)
+      document.removeEventListener('keypress', handleActivity)
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current)
+      }
+    }
+  }, [interviewData, sessionLockId, token, navigate])
 
   // Timer countdown
   useEffect(() => {
@@ -95,6 +198,28 @@ const PublicInterviewScreen = () => {
     setRecordedVideo(videoBlob)
   }
 
+  // ===== PRODUCTION READINESS: Save Progress After Each Answer =====
+  const saveProgress = async () => {
+    if (!sessionLockId || !interviewData) return
+
+    try {
+      await fetch(`http://localhost:9000/api/interview/session/${interviewData.sessionId}/progress`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionLockId,
+          currentQuestionIndex,
+          answers,
+          transcript: '',
+        }),
+      })
+    } catch (error) {
+      console.warn('Could not save progress to server:', error)
+      // Save locally as fallback
+      localStorage.setItem('interviewAnswers', JSON.stringify(answers))
+    }
+  }
+
   const handleSubmitAnswer = async () => {
     if (submitting) return
 
@@ -103,20 +228,77 @@ const PublicInterviewScreen = () => {
     try {
       // Check if last question
       if (currentQuestionIndex === interviewData.questions.length - 1) {
-        // All questions answered - go to evaluation
-        // Save answers to localStorage
+        // ===== PRODUCTION READINESS: Submit with Retry =====
+        // All questions answered - submit for evaluation
         localStorage.setItem('interviewAnswers', JSON.stringify(answers))
 
-        toast.success('Interview completed! Processing results...', {
-          position: 'top-right',
-          autoClose: 2000,
-        })
+        try {
+          setRetryingSubmission(false)
 
-        setTimeout(() => {
-          navigate(`/interview/session/${token}/results`)
-        }, 2000)
+          await retryInterviewSubmission(
+            async () => {
+              const response = await fetch(
+                `http://localhost:9000/api/interview/session/${interviewData.sessionId}/submit`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    interviewId: interviewData.sessionId,
+                    sessionLockId,
+                    jobRole: interviewData.jobRole,
+                    experienceLevel: interviewData.experienceLevel,
+                    questions: interviewData.questions.map((q, idx) => ({
+                      question: q,
+                      answer: answers[idx]?.content || '',
+                    })),
+                    interviewType: interviewData.interviewType,
+                    difficultyLevel: interviewData.difficultyLevel,
+                    answers: Object.entries(answers).reduce((acc, [idx, answer]) => {
+                      acc[idx] = answer.content || ''
+                      return acc
+                    }, {}),
+                  }),
+                }
+              )
+
+              if (!response.ok) {
+                const error = await response.json()
+                throw new Error(error.message || 'Submission failed')
+              }
+
+              return response.json()
+            },
+            (message, isRetrying) => {
+              if (isRetrying) {
+                setRetryingSubmission(true)
+                toast.info(message, {
+                  position: 'top-right',
+                  autoClose: 3000,
+                })
+              }
+            }
+          )
+
+          toast.success('Interview submitted successfully!', {
+            position: 'top-right',
+            autoClose: 2000,
+          })
+
+          setTimeout(() => {
+            navigate(`/interview/session/${token}/results`)
+          }, 2000)
+        } catch (error) {
+          toast.error(
+            error.message || 'Failed to submit interview. Please check your connection and try again.',
+            {
+              position: 'top-right',
+              autoClose: 3000,
+            }
+          )
+        }
       } else {
         // Move to next question
+        await saveProgress()
         setCurrentQuestionIndex((prev) => prev + 1)
         setTimeLeft(300)
         setRecordedAnswer(null)
@@ -131,13 +313,17 @@ const PublicInterviewScreen = () => {
       })
     } finally {
       setSubmitting(false)
+      setRetryingSubmission(false)
     }
   }
 
-  if (!interviewData) {
+  if (!interviewData || isResuming) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader className="animate-spin" size={40} />
+        <div className="flex flex-col items-center gap-3">
+          <Loader className="animate-spin" size={40} />
+          <p className="text-gray-600">{isResuming ? 'Resuming interview...' : 'Loading interview...'}</p>
+        </div>
       </div>
     )
   }
@@ -148,6 +334,16 @@ const PublicInterviewScreen = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 py-8">
       <div className="max-w-6xl mx-auto">
+        {/* Session Status Banner */}
+        {retryingSubmission && (
+          <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="text-orange-600" size={20} />
+            <span className="text-orange-800 text-sm font-medium">
+              Connection issue detected. Retrying submission...
+            </span>
+          </div>
+        )}
+
         {/* Header with Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -310,7 +506,7 @@ const PublicInterviewScreen = () => {
                   {submitting ? (
                     <>
                       <Loader size={18} className="animate-spin" />
-                      Processing...
+                      {retryingSubmission ? 'Retrying...' : 'Processing...'}
                     </>
                   ) : currentQuestionIndex === interviewData.questions.length - 1 ? (
                     <>
