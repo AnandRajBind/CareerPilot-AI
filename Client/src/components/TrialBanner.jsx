@@ -15,7 +15,7 @@ const TrialBanner = () => {
           <div className="flex-1">
             <h3 className="text-lg font-bold mb-1">Trial Period Expired</h3>
             <p className="text-red-100 mb-4">
-              Your 3-day free trial has ended. Please upgrade your plan to continue using CareerPilot AI.
+              Your 3-day free trial has ended. Please upgrade your plan to continue using Perekrut AI.
             </p>
             <Link
               to="/dashboard/billing"
@@ -61,7 +61,7 @@ const TrialBanner = () => {
           <div className="flex-1">
             <h3 className="text-lg font-bold mb-1">Free Trial Active</h3>
             <p className="text-yellow-100 mb-4">
-              {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining in your trial. Start your journey with CareerPilot AI!
+              {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining in your trial. Start your journey with Perekrut AI!
             </p>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-yellow-400 rounded-full h-2">

@@ -223,7 +223,7 @@ const AdminBilling = () => {
                 </div>
 
                 <p className="text-xs text-gray-600 mt-3">
-                  Your 3-day trial will expire soon. Upgrade to a paid plan to continue using CareerPilot AI.
+                  Your 3-day trial will expire soon. Upgrade to a paid plan to continue using Perekrut AI.
                 </p>
               </div>
             )}
@@ -360,7 +360,7 @@ const AdminBilling = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Questions about our plans?</h3>
           <p className="text-gray-600 mb-4">Our sales team is happy to help you choose the right plan.</p>
           <a
-            href="mailto:sales@careerpilot.ai"
+            href="mailto:sales@perekrut.ai"
             className="inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-primary/90 transition font-medium"
           >
             Contact Sales

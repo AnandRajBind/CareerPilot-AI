@@ -206,10 +206,10 @@ const InterviewSession = () => {
           {/* Header */}
           <div className="text-center mb-4">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center mx-auto mb-3">
-              <span className="text-white font-bold text-xl">C</span>
+              <span className="text-white font-bold text-xl">P</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Interview Session</h1>
-            <p className="text-sm text-gray-600">Welcome to CareerPilot AI Interview</p>
+            <p className="text-sm text-gray-600">Welcome to Perekrut AI Interview</p>
           </div>
 
           {/* Interview Details */}
@@ -304,7 +304,7 @@ const InterviewSession = () => {
 
           {/* Footer */}
           <p className="text-center text-xs text-gray-500 mt-3 flex-shrink-0">
-            © 2024 CareerPilot AI. All rights reserved.
+            © 2024 Perekrut AI. All rights reserved.
           </p>
         </div>
       </div>

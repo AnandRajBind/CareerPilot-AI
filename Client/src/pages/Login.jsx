@@ -56,7 +56,7 @@ const Login = () => {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">C</span>
+              <span className="text-white font-bold text-2xl">P</span>
             </div>
             <h1 className="text-3xl font-bold text-dark mb-2">Welcome back</h1>
             <p className="text-gray-600">Sign in to your account to continue</p>
@@ -151,7 +151,7 @@ const Login = () => {
 
         {/* Footer */}
         <p className="text-center text-gray-600 text-sm mt-6">
-          © 2024 CareerPilot AI. All rights reserved.
+          © 2024 Perekrut AI. All rights reserved.
         </p>
       </div>
     </div>
