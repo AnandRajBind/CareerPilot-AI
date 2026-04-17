@@ -1,5 +1,5 @@
 {
-  "name": "careerpilot-ai-backend",
+  "name": "perekrut-ai-server",
   "version": "1.0.0",
   "description": "Production-ready Node.js backend for CareerPilot AI application",
   "main": "server.js",
