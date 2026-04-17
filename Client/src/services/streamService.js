@@ -1,6 +1,4 @@
-import axios from 'axios'
-
-const API_BASE = 'http://localhost:9000/api'
+import api from './api'
 
 /**
  * Get Stream API token for video call
@@ -9,7 +7,7 @@ const API_BASE = 'http://localhost:9000/api'
  */
 export const getStreamToken = async (userId) => {
   try {
-    const response = await axios.post(`${API_BASE}/stream/token`, { userId })
+    const response = await api.post('/stream/token', { userId })
 
     if (!response.data.success) {
       throw new Error(response.data.message || 'Failed to get Stream token')
@@ -30,7 +28,7 @@ export const getStreamToken = async (userId) => {
  */
 export const initializeStreamCall = async (callId, userId) => {
   try {
-    const response = await axios.post(`${API_BASE}/stream/call/init`, {
+    const response = await api.post('/stream/call/init', {
       callId,
       userId,
     })
@@ -54,7 +52,7 @@ export const initializeStreamCall = async (callId, userId) => {
  */
 export const toggleSessionRecording = async (callId, enabled) => {
   try {
-    const response = await axios.post(`${API_BASE}/stream/call/recording`, {
+    const response = await api.post('/stream/call/recording', {
       callId,
       enabled,
     })
@@ -78,7 +76,7 @@ export const toggleSessionRecording = async (callId, enabled) => {
  */
 export const endInterviewSession = async (callId, sessionData) => {
   try {
-    const response = await axios.post(`${API_BASE}/stream/call/end`, {
+    const response = await api.post('/stream/call/end', {
       callId,
       sessionData,
     })

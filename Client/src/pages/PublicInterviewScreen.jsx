@@ -54,7 +54,7 @@ const PublicInterviewScreen = () => {
           setIsResuming(true)
           try {
             const resumeResponse = await fetch(
-              `http://localhost:9000/api/interview/session/${savedInterviewId}/resume?sessionLockId=${savedSessionLockId}`
+              `${import.meta.env.VITE_API_URL}/interview/session/${savedInterviewId}/resume?sessionLockId=${savedSessionLockId}`
             )
 
             if (resumeResponse.ok) {

@@ -24,7 +24,7 @@ const AdminResults = () => {
         const token = localStorage.getItem('token')
         
         // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
-        const response = await fetch(`http://localhost:9000/api/interviews?status=completed&t=${Date.now()}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/interviews?status=completed&t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Cache-Control': 'no-cache, no-store, must-revalidate',

@@ -24,7 +24,7 @@ const CompanyInterviews = () => {
   const fetchTemplates = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:9000/api/company/interviews/templates', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/company/interviews/templates`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -70,7 +70,7 @@ const CompanyInterviews = () => {
     setDeleting(id)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:9000/api/company/interviews/template/${id}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/company/interviews/template/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

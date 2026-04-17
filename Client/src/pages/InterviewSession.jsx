@@ -22,7 +22,7 @@ const InterviewSession = () => {
 
   const fetchTemplateInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:9000/api/interview/session/${token}/info`)
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/interview/session/${token}/info`)
 
       if (response.ok) {
         const data = await response.json()
@@ -90,7 +90,7 @@ const InterviewSession = () => {
       // Creates unique identifier for this browser/device session
       const sessionFingerprint = `fp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-      const response = await fetch(`http://localhost:9000/api/interview/session/${token}/start`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/interview/session/${token}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

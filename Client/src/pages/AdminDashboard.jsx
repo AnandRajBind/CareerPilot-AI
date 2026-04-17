@@ -23,7 +23,7 @@ const AdminDashboard = () => {
         
         // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
         // Fetch interviews with cache-busting timestamp
-        const response = await fetch(`http://localhost:9000/api/interviews?t=${Date.now()}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/interviews?t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
