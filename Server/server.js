@@ -31,31 +31,43 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration - Dynamic origin checking for multiple deployments
+// CORS configuration - Allow specific origins for development and production
+const allowedOrigins = [
+  "http://localhost:5173",           // Vite dev server (local development)
+  "http://localhost:3000",           // Alternative local dev port
+  "https://perekrut-ai.vercel.app",  // Production Vercel domain
+];
+
+// In development, allow preview/draft deployments from Vercel
+if (NODE_ENV === "development") {
+  allowedOrigins.push(/\.vercel\.app$/); // Regex pattern for any Vercel preview deployment
+}
+
 const corsOptions = {
   origin: function (origin, callback) {
-   
-    // Allow localhost development
-    if (origin.startsWith(process.env.CORS_LOCALHOST)) {
-      return callback(null, true);
-    }
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
 
-    // Allow production Vercel domain
-    if (origin === process.env.CORS_PRODUCTION) {
-      return callback(null, true);
-    }
+    // Check if origin is in allowedOrigins array
+    const isAllowed = allowedOrigins.some((allowed) => {
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return origin === allowed;
+    });
 
-    // Allow any Vercel preview deployment
-    if (origin.endsWith(process.env.CORS_VERCEL_DOMAIN)) {
-      return callback(null, true);
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS not allowed for origin: ${origin}`));
     }
-
-    // Reject all other origins
-    return callback(new Error("Not allowed by CORS"));
   },
-  credentials: true,
-  optionsSuccessStatus: 200,
+  credentials: true,           // Allow cookies/auth headers
+  optionsSuccessStatus: 200,  // For legacy browsers
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
+
 app.use(cors(corsOptions));
 
 // Body parser middleware
