@@ -31,9 +31,28 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// CORS configuration
+// CORS configuration - Dynamic origin checking for multiple deployments
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN,
+  origin: function (origin, callback) {
+   
+    // Allow localhost development
+    if (origin.startsWith(process.env.CORS_LOCALHOST)) {
+      return callback(null, true);
+    }
+
+    // Allow production Vercel domain
+    if (origin === process.env.CORS_PRODUCTION) {
+      return callback(null, true);
+    }
+
+    // Allow any Vercel preview deployment
+    if (origin.endsWith(process.env.CORS_VERCEL_DOMAIN)) {
+      return callback(null, true);
+    }
+
+    // Reject all other origins
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
   optionsSuccessStatus: 200,
 };
