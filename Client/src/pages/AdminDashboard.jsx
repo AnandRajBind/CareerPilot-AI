@@ -21,34 +21,43 @@ const AdminDashboard = () => {
       try {
         const token = localStorage.getItem('token')
         
+        if (!token) {
+          console.warn('No authentication token found')
+          setLoading(false)
+          return
+        }
+
         // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
         // Fetch interviews with cache-busting timestamp
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/interviews?t=${Date.now()}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000/api'
+        const response = await fetch(`${apiUrl}/interviews?t=${Date.now()}`, {
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
+            'Content-Type': 'application/json',
           },
         })
 
-        if (response.ok) {
-          const data = await response.json()
-          const interviewsData = data.data?.interviews || []
-
-          // Calculate statistics
-          const completed = interviewsData.filter((i) => i.status === 'completed')
-          const totalScore = completed.reduce((sum, i) => sum + (i.evaluation?.score || 0), 0)
-          const avgScore = completed.length > 0 ? (totalScore / completed.length).toFixed(1) : 0
-
-          setStats({
-            totalInterviews: interviewsData.length,
-            candidatesInterviewed: new Set(interviewsData.map((i) => i.candidateEmail || i.candidateId)).size,
-            averageScore: avgScore,
-          })
-
-          // Get recent interviews (both authenticated and public template-based)
-          setInterviews(interviewsData.slice(0, 5))
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
+
+        const data = await response.json()
+        const interviewsData = data.data?.interviews || []
+
+        // Calculate statistics
+        const completed = interviewsData.filter((i) => i.status === 'completed')
+        const totalScore = completed.reduce((sum, i) => sum + (i.evaluation?.score || 0), 0)
+        const avgScore = completed.length > 0 ? (totalScore / completed.length).toFixed(1) : 0
+
+        setStats({
+          totalInterviews: interviewsData.length,
+          candidatesInterviewed: new Set(interviewsData.map((i) => i.candidateEmail || i.candidateId)).size,
+          averageScore: avgScore,
+        })
+
+        // Get recent interviews (both authenticated and public template-based)
+        setInterviews(interviewsData.slice(0, 5))
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       } finally {

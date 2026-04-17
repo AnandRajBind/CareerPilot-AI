@@ -23,23 +23,42 @@ const AdminResults = () => {
       try {
         const token = localStorage.getItem('token')
         
+        if (!token) {
+          toast.error('No authentication token found. Please login again.', {
+            position: 'top-right',
+            autoClose: 3000,
+          })
+          setLoading(false)
+          return
+        }
+
         // ===== PRODUCTION READINESS: Force fresh data (no caching) =====
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/interviews?status=completed&t=${Date.now()}`, {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9000/api'
+        const response = await fetch(`${apiUrl}/interviews?status=completed&t=${Date.now()}`, {
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
+            'Content-Type': 'application/json',
           },
         })
 
-        if (response.ok) {
-          const data = await response.json()
-          const interviews = data.data?.interviews || []
-          setInterviews(interviews)
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        
+        if (data.success && data.data?.interviews) {
+          setInterviews(data.data.interviews)
+        } else if (Array.isArray(data)) {
+          // Handle case where response is directly an array
+          setInterviews(data)
+        } else {
+          setInterviews([])
         }
       } catch (error) {
         console.error('Error fetching results:', error)
-        toast.error('Failed to load results', {
+        toast.error('Failed to load results: ' + error.message, {
           position: 'top-right',
           autoClose: 3000,
         })
