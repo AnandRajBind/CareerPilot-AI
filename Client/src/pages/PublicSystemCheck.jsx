@@ -4,7 +4,7 @@ import { toast } from 'react-toastify'
 import { CheckCircle, AlertCircle, Loader, Video, Mic, Share2 } from 'lucide-react'
 import { useSystemCheck } from '../hooks/useSystemCheck'
 
-const PublicSystemCheck = () => {
+const PublicSystemCheck = ({ onProceed = null, isPublicMock = false }) => {
   const { token } = useParams()
   const navigate = useNavigate()
   const {
@@ -36,17 +36,31 @@ const PublicSystemCheck = () => {
 
   // Load interview data
   useEffect(() => {
-    const savedInterview = localStorage.getItem('currentInterview')
+    // For mock interviews, data is stored as 'interviewData'
+    // For token-based interviews, data is stored as 'currentInterview'
+    const savedInterview = localStorage.getItem('currentInterview') || localStorage.getItem('interviewData')
+    
     if (!savedInterview) {
-      toast.error('Interview session not found', {
+      const errorMsg = isPublicMock ? 'Please start from the home page.' : 'Interview session not found'
+      toast.error(errorMsg, {
         position: 'top-right',
         autoClose: 3000,
       })
-      navigate(`/interview/session/${token}`)
+      
+      if (isPublicMock) {
+        navigate('/')
+      } else {
+        navigate(`/interview/session/${token}`)
+      }
       return
     }
-    setInterviewData(JSON.parse(savedInterview))
-  }, [token, navigate])
+    
+    const interviewDataParsed = JSON.parse(savedInterview)
+    setInterviewData(interviewDataParsed)
+    
+    // Store as 'currentInterview' for consistency
+    localStorage.setItem('currentInterview', JSON.stringify(interviewDataParsed))
+  }, [token, navigate, isPublicMock])
 
   // Setup video preview
   useEffect(() => {
@@ -126,7 +140,13 @@ const PublicSystemCheck = () => {
 
     setIsStarting(true)
     try {
-      navigate(`/interview/session/${token}/video`)
+      if (isPublicMock && onProceed) {
+        // For public mock interviews, call the onProceed callback
+        onProceed()
+      } else {
+        // For regular interviews with token
+        navigate(`/interview/session/${token}/video`)
+      }
     } catch (error) {
       toast.error('Failed to start interview', {
         position: 'top-right',

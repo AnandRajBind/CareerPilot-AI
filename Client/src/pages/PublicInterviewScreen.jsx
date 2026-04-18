@@ -4,11 +4,10 @@ import { toast } from 'react-toastify'
 import { ChevronRight, ChevronLeft, Volume2, Phone, SkipForward, Loader, AlertCircle } from 'lucide-react'
 import { speakText } from '../utils/speechUtils'
 import VoiceRecorder from '../components/VoiceRecorder'
-import VideoRecorder from '../components/VideoRecorder'
 import { useMedia } from '../context/MediaContext'
 import { retryWithBackoff, retryInterviewSubmission } from '../services/retryService'
 
-const PublicInterviewScreen = () => {
+const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   const { token } = useParams()
   const navigate = useNavigate()
   const { cameraStream, microphoneTrack } = useMedia()
@@ -19,10 +18,8 @@ const PublicInterviewScreen = () => {
   const [answers, setAnswers] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [recordedAnswer, setRecordedAnswer] = useState(null)
-  const [answerType, setAnswerType] = useState('text') // 'text', 'voice', 'video'
+  const [answerType, setAnswerType] = useState('text') // 'text', 'voice'
   const [timeLeft, setTimeLeft] = useState(300) // 5 minutes
-  const [showVideo, setShowVideo] = useState(false)
-  const [recordedVideo, setRecordedVideo] = useState(null)
   const [isResuming, setIsResuming] = useState(false)
   const [retryingSubmission, setRetryingSubmission] = useState(false)
   const sessionTimeoutRef = useRef(null)
@@ -31,8 +28,8 @@ const PublicInterviewScreen = () => {
   useEffect(() => {
     const loadOrResumeSession = async () => {
       try {
-        // Try to get saved interview data
-        const savedInterview = localStorage.getItem('currentInterview')
+        // Try to get saved interview data (for mock interviews it's stored as 'interviewData')
+        const savedInterview = localStorage.getItem('currentInterview') || localStorage.getItem('interviewData')
         const savedSessionLockId = sessionStorage.getItem('sessionLockId')
         const savedInterviewId = sessionStorage.getItem('interviewId')
 
@@ -41,15 +38,33 @@ const PublicInterviewScreen = () => {
             position: 'top-right',
             autoClose: 3000,
           })
-          navigate(`/interview/session/${token}`)
+          if (isPublicMock) {
+            navigate('/')
+          } else {
+            navigate(`/interview/session/${token}`)
+          }
           return
         }
 
         const interviewDataParsed = JSON.parse(savedInterview)
         setInterviewData(interviewDataParsed)
         setSessionLockId(savedSessionLockId)
+        
+        // Also store as currentInterview for consistency
+        localStorage.setItem('currentInterview', JSON.stringify(interviewDataParsed))
 
-        // If we have a session lock ID, try to resume from server
+        // For mock interviews, skip server-side session recovery
+        if (isPublicMock) {
+          // Just load from localStorage, no server resume needed
+          const savedAnswers = localStorage.getItem('interviewAnswers')
+          if (savedAnswers) {
+            setAnswers(JSON.parse(savedAnswers))
+          }
+          setIsResuming(false)
+          return
+        }
+
+        // For authenticated interviews, try to resume from server
         if (savedSessionLockId && savedInterviewId) {
           setIsResuming(true)
           try {
@@ -72,7 +87,7 @@ const PublicInterviewScreen = () => {
                   }
                 )
               }
-            } else if (resumeResponse.status === 410) {
+              } else if (resumeResponse.status === 410) {
               // Session expired
               toast.error('Interview session has expired. Please start a new one.', {
                 position: 'top-right',
@@ -101,7 +116,7 @@ const PublicInterviewScreen = () => {
     }
 
     loadOrResumeSession()
-  }, [token, navigate])
+  }, [token, navigate, isPublicMock])
 
   // ===== PRODUCTION READINESS: Session Timeout Protection =====
   useEffect(() => {
@@ -119,7 +134,11 @@ const PublicInterviewScreen = () => {
           position: 'top-right',
           autoClose: 3000,
         })
-        navigate(`/interview/session/${token}`)
+        if (isPublicMock) {
+          navigate('/')
+        } else {
+          navigate(`/interview/session/${token}`)
+        }
       }, 30 * 60 * 1000)
     }
 
@@ -187,19 +206,14 @@ const PublicInterviewScreen = () => {
     setRecordedAnswer(transcript)
   }
 
-  const handleVideoAnswer = (videoBlob) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: {
-        type: 'video',
-        videoBlob,
-      },
-    }))
-    setRecordedVideo(videoBlob)
-  }
-
   // ===== PRODUCTION READINESS: Save Progress After Each Answer =====
   const saveProgress = async () => {
+    // For mock interviews, just save to localStorage
+    if (isPublicMock) {
+      localStorage.setItem('interviewAnswers', JSON.stringify(answers))
+      return
+    }
+
     if (!sessionLockId || !interviewData) return
 
     try {
@@ -228,10 +242,23 @@ const PublicInterviewScreen = () => {
     try {
       // Check if last question
       if (currentQuestionIndex === interviewData.questions.length - 1) {
-        // ===== PRODUCTION READINESS: Submit with Retry =====
-        // All questions answered - submit for evaluation
+        // All questions answered - save and transition
         localStorage.setItem('interviewAnswers', JSON.stringify(answers))
 
+        // For public mock interviews, skip backend submission
+        if (isPublicMock && onComplete) {
+          toast.success('Interview submitted successfully!', {
+            position: 'top-right',
+            autoClose: 1500,
+          })
+          setTimeout(() => {
+            setSubmitting(false)
+            onComplete()
+          }, 1500)
+          return
+        }
+
+        // For authenticated interviews, submit to backend with retry
         try {
           setRetryingSubmission(false)
 
@@ -285,7 +312,13 @@ const PublicInterviewScreen = () => {
           })
 
           setTimeout(() => {
-            navigate(`/interview/session/${token}/results`)
+            if (isPublicMock && onComplete) {
+              // For public mock interviews, call the onComplete callback
+              onComplete()
+            } else {
+              // For regular interviews with token
+              navigate(`/interview/session/${token}/results`)
+            }
           }, 2000)
         } catch (error) {
           toast.error(
@@ -302,8 +335,6 @@ const PublicInterviewScreen = () => {
         setCurrentQuestionIndex((prev) => prev + 1)
         setTimeLeft(300)
         setRecordedAnswer(null)
-        setRecordedVideo(null)
-        setShowVideo(false)
         setAnswerType('text')
       }
     } catch (error) {
@@ -399,7 +430,6 @@ const PublicInterviewScreen = () => {
                   <button
                     onClick={() => {
                       setAnswerType('text')
-                      setShowVideo(false)
                     }}
                     className={`px-4 py-2 rounded-lg font-medium transition ${
                       answerType === 'text'
@@ -412,7 +442,6 @@ const PublicInterviewScreen = () => {
                   <button
                     onClick={() => {
                       setAnswerType('voice')
-                      setShowVideo(false)
                     }}
                     className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
                       answerType === 'voice'
@@ -422,19 +451,6 @@ const PublicInterviewScreen = () => {
                   >
                     <Phone size={16} />
                     Voice
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAnswerType('video')
-                      setShowVideo(true)
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
-                      answerType === 'video'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Video
                   </button>
                 </div>
               </div>
@@ -458,17 +474,6 @@ const PublicInterviewScreen = () => {
                     <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm font-medium text-gray-700 mb-2">Recorded transcript:</p>
                       <p className="text-gray-900">{recordedAnswer}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {answerType === 'video' && (
-                <div className="mb-6">
-                  <VideoRecorder onRecordingComplete={handleVideoAnswer} />
-                  {recordedVideo && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Video recorded successfully</p>
                     </div>
                   )}
                 </div>
@@ -523,24 +528,6 @@ const PublicInterviewScreen = () => {
               </div>
             </div>
           </div>
-
-          {/* Sidebar - Video Feed */}
-          {showVideo && cameraStream && (
-            <div className="lg:col-span-1">
-              <div className="bg-white rounded-lg shadow-lg overflow-hidden sticky top-4">
-                <div className="bg-black aspect-video flex items-center justify-center">
-                  <video
-                    autoPlay
-                    muted
-                    className="w-full h-full object-cover transform -scale-x-100"
-                  />
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">Your camera feed</p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

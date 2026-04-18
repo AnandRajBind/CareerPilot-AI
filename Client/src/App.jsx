@@ -27,13 +27,17 @@ import PublicSystemCheck from './pages/PublicSystemCheck'
 import PublicInterviewScreen from './pages/PublicInterviewScreen'
 import PublicInterviewResults from './pages/PublicInterviewResults'
 import InterviewSuccess from './pages/InterviewSuccess'
+import MockInterview from './pages/MockInterview'
+import PublicInterview from './pages/PublicInterview'
 
 // Component to conditionally render navbar based on route
 const NavbarWrapper = () => {
   const location = useLocation()
   
-  // Hide navbar on interview pages (success, video, system-check, and session)
+  // Hide navbar on interview pages (success, video, system-check, session, and public interviews)
   if (location.pathname === '/interview/success' || 
+      location.pathname === '/mock-interview' ||
+      location.pathname === '/public-interview' ||
       location.pathname.match(/^\/interview\/session\/.*\/video$/) ||
       location.pathname.match(/^\/interview\/session\/.*\/system-check$/) ||
       location.pathname.match(/^\/interview\/session\/[a-f0-9]+$/)) {
@@ -56,6 +60,10 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                
+                {/* Mock Interview for Students (No Auth Required) */}
+                <Route path="/mock-interview" element={<MockInterview />} />
+                <Route path="/public-interview" element={<PublicInterview />} />
                 
                 {/* Candidate Features */}
                 <Route path="/candidate-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

@@ -1,12 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { ArrowRight, Zap, Users, BarChart3, Brain, Lock, MessageSquare, Sparkles } from 'lucide-react'
 import FeatureCard from '../components/FeatureCard'
+import StudentFormModal from '../components/StudentFormModal'
 
 const Home = () => {
   const navigate = useNavigate()
   const { user, isAuthenticated } = useAuth()
+  const [showStudentForm, setShowStudentForm] = useState(false)
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
@@ -40,7 +42,7 @@ const Home = () => {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <button
-                  onClick={() => navigate('/interview-session')}
+                  onClick={() => setShowStudentForm(true)}
                   className="px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 flex items-center justify-center gap-2"
                 >
                   Start Mock Interview <ArrowRight size={20} />
@@ -197,7 +199,7 @@ const Home = () => {
                 </div>
 
                 <button
-                  onClick={() => navigate('/interview-session')}
+                  onClick={() => setShowStudentForm(true)}
                   className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all"
                 >
                   Start Free Practice Now
@@ -373,7 +375,7 @@ const Home = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
-              onClick={() => navigate('/interview-session')}
+              onClick={() => setShowStudentForm(true)}
               className="px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 flex items-center justify-center gap-2"
             >
               Start Mock Interview <ArrowRight size={20} />
@@ -397,6 +399,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Student Form Modal */}
+      <StudentFormModal isOpen={showStudentForm} onClose={() => setShowStudentForm(false)} />
     </div>
   )
 }
