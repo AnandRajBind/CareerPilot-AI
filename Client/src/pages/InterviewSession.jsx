@@ -254,7 +254,7 @@ const InterviewSession = () => {
                   name="candidateName"
                   value={formData.candidateName}
                   onChange={handleChange}
-                  placeholder="John Doe"
+                  placeholder="Enter your name"
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
                     errors.candidateName ? 'border-red-500' : 'border-gray-300'
                   }`}

@@ -128,7 +128,7 @@ const Register = () => {
                 className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition ${
                   errors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="John Doe"
+                placeholder="Enter your name"
               />
               {errors.name && (
                 <p className="text-red-500 text-sm mt-1">{errors.name}</p>
