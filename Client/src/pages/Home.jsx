@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import { ArrowRight, Zap, Users, BarChart3, Brain, Lock, MessageSquare, Sparkles } from 'lucide-react'
 import FeatureCard from '../components/FeatureCard'
 import StudentFormModal from '../components/StudentFormModal'
+import TypewriterEffect from '../components/TypewriterEffect'
 
 const Home = () => {
   const navigate = useNavigate()
@@ -28,10 +29,13 @@ const Home = () => {
                 </div>
                 
                 <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-                  Perekrut AI
-                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">
-                    AI Interviews for Everyone
-                  </span>
+                  <TypewriterEffect 
+                    text="Perekrut AI&#10;AI Interviews for Everyone" 
+                    speed={60}
+                    delay={0}
+                    loop={true}
+                    secondLineClass="text-2xl md:text-4xl"
+                  />
                 </h1>
                 
                 <p className="text-xl text-gray-300 max-w-lg">
