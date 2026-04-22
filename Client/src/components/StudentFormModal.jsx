@@ -8,6 +8,7 @@ const StudentFormModal = ({ isOpen, onClose }) => {
     studentName: '',
     rollNumber: '',
     collegeName: '',
+    email: '',
   })
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -42,6 +43,11 @@ const StudentFormModal = ({ isOpen, onClose }) => {
       newErrors.collegeName = 'College name is required'
     }
 
+    // Email is optional but validate if provided
+    if (formData.email && !/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -56,11 +62,12 @@ const StudentFormModal = ({ isOpen, onClose }) => {
     setIsSubmitting(true)
 
     try {
-      // Store student data in localStorage
+      // Store student data in localStorage (matching StudentRegistrationForm format)
       const studentInfo = {
-        name: formData.studentName,
+        studentName: formData.studentName,
         rollNumber: formData.rollNumber,
         collegeName: formData.collegeName,
+        email: formData.email || '',
         timestamp: new Date().toISOString(),
       }
 
@@ -71,13 +78,14 @@ const StudentFormModal = ({ isOpen, onClose }) => {
         studentName: '',
         rollNumber: '',
         collegeName: '',
+        email: '',
       })
 
       // Close modal and redirect
       onClose()
       
-      // Navigate to mock interview page
-      navigate('/mock-interview')
+      // Navigate to mock interview setup page
+      navigate('/mock-interview-setup')
     } catch (error) {
       console.error('Error submitting form:', error)
       setErrors({ submit: 'Failed to submit form. Please try again.' })
@@ -164,6 +172,26 @@ const StudentFormModal = ({ isOpen, onClose }) => {
             />
             {errors.collegeName && (
               <p className="text-red-500 text-sm mt-1">{errors.collegeName}</p>
+            )}
+          </div>
+
+          {/* Email (Optional) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-2">
+              Email (Optional)
+            </label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="your.email@example.com"
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
+                errors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+              }`}
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
             )}
           </div>
 

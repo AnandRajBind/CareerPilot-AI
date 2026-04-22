@@ -7,7 +7,7 @@ import {
   isSpeechRecognitionSupported,
 } from '../utils/speechUtils'
 
-export default function VoiceRecorder({ onTranscript, onError, autoInsert = true }) {
+export default function VoiceRecorder({ onTranscript, onError, onRecordingComplete, autoInsert = true }) {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimTranscript, setInterimTranscript] = useState('')
@@ -61,6 +61,16 @@ export default function VoiceRecorder({ onTranscript, onError, autoInsert = true
           if (transcript && onTranscript) {
             onTranscript(transcript)
           }
+          // Call completion callback with transcript after recording ends
+          if (transcript && onRecordingComplete) {
+            // Small delay to ensure state is updated
+            setTimeout(() => {
+              onRecordingComplete(transcript)
+            }, 100)
+          } else if (!transcript && onRecordingComplete) {
+            // Call even if no transcript for error handling
+            onRecordingComplete(null)
+          }
         },
         onError: (error) => {
           setIsListening(false)
@@ -83,12 +93,6 @@ export default function VoiceRecorder({ onTranscript, onError, autoInsert = true
   const handleStopListening = () => {
     stopListening()
     setIsListening(false)
-  }
-
-  const handleManualInsert = () => {
-    if (transcript && onTranscript) {
-      onTranscript(transcript)
-    }
   }
 
   // Don't render if not supported
@@ -118,17 +122,6 @@ export default function VoiceRecorder({ onTranscript, onError, autoInsert = true
           >
             <Square className="w-5 h-5" />
             Stop Recording
-          </button>
-        )}
-
-        {/* Insert Manual Button */}
-        {transcript && !isListening && (
-          <button
-            onClick={handleManualInsert}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all"
-            title="Insert transcript into answer field"
-          >
-            Insert Text
           </button>
         )}
       </div>

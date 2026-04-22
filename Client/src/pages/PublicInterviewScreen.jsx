@@ -22,14 +22,19 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   const [timeLeft, setTimeLeft] = useState(300) // 5 minutes
   const [isResuming, setIsResuming] = useState(false)
   const [retryingSubmission, setRetryingSubmission] = useState(false)
+  const [isMockInterview, setIsMockInterview] = useState(false) // Flag to detect mock interviews
   const sessionTimeoutRef = useRef(null)
 
   // ===== PRODUCTION READINESS: Session Recovery on Mount =====
   useEffect(() => {
     const loadOrResumeSession = async () => {
       try {
-        // Try to get saved interview data (for mock interviews it's stored as 'interviewData')
-        const savedInterview = localStorage.getItem('currentInterview') || localStorage.getItem('interviewData')
+        // Check if this is a mock interview
+        const mockFlag = localStorage.getItem('isMockInterview') === 'true'
+        setIsMockInterview(mockFlag)
+
+        // Try to get saved interview data
+        const savedInterview = localStorage.getItem('mockInterviewData') || localStorage.getItem('interviewData') || localStorage.getItem('currentInterview')
         const savedSessionLockId = sessionStorage.getItem('sessionLockId')
         const savedInterviewId = sessionStorage.getItem('interviewId')
 
@@ -38,7 +43,7 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
             position: 'top-right',
             autoClose: 3000,
           })
-          if (isPublicMock) {
+          if (mockFlag || isPublicMock) {
             navigate('/')
           } else {
             navigate(`/interview/session/${token}`)
@@ -50,11 +55,15 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
         setInterviewData(interviewDataParsed)
         setSessionLockId(savedSessionLockId)
         
+        // Debug logging
+        console.log('Interview Data Loaded:', interviewDataParsed)
+        console.log('Questions:', interviewDataParsed?.questions)
+        
         // Also store as currentInterview for consistency
         localStorage.setItem('currentInterview', JSON.stringify(interviewDataParsed))
 
         // For mock interviews, skip server-side session recovery
-        if (isPublicMock) {
+        if (mockFlag || isPublicMock) {
           // Just load from localStorage, no server resume needed
           const savedAnswers = localStorage.getItem('interviewAnswers')
           if (savedAnswers) {
@@ -181,8 +190,6 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`
   }
 
-  const currentQuestion = interviewData?.questions[currentQuestionIndex]
-
   const handleTextAnswer = (value) => {
     setAnswers((prev) => ({
       ...prev,
@@ -193,27 +200,124 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
     }))
   }
 
-  const handleVoiceAnswer = (audioBlob, transcript) => {
+  const handleVoiceAnswer = (transcript) => {
     setAnswers((prev) => ({
       ...prev,
       [currentQuestionIndex]: {
         type: 'voice',
-        audioBlob,
-        transcript,
         content: transcript,
       },
     }))
     setRecordedAnswer(transcript)
   }
 
+  // Handle voice recording completion - automatically move to next question
+  const handleVoiceRecordingComplete = async (transcript) => {
+    if (!transcript || !interviewData) return // No transcript or interview data, do nothing
+    
+    try {
+      // IMPORTANT: Calculate current state values BEFORE async operations
+      const totalQuestions = interviewData.questions.length
+      const currentIndex = currentQuestionIndex
+      const isLastQuestion = currentIndex >= totalQuestions - 1 // Guard against invalid indices
+      
+      console.log(`Voice Recording: Q${currentIndex + 1}/${totalQuestions}, isLastQuestion=${isLastQuestion}`)
+      
+      // Save answer state immediately
+      setAnswers((prev) => ({
+        ...prev,
+        [currentIndex]: {
+          type: 'voice',
+          content: transcript,
+        },
+      }))
+      setRecordedAnswer(transcript)
+
+      // Save the answer to backend first - use captured values
+      if (isMockInterview && interviewData) {
+        const saveResponse = await fetch(`${import.meta.env.VITE_API_URL}/mock/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            interviewId: interviewData.interviewId,
+            questionIndex: currentIndex,
+            answer: transcript,
+            format: 'voice',
+          }),
+        })
+
+        if (!saveResponse.ok) {
+          console.error('Failed to save answer:', saveResponse.status)
+          toast.error('Failed to save your answer. Please try again.')
+          return
+        }
+      }
+
+      // Small delay to show transcript, then auto-advance
+      setTimeout(() => {
+        try {
+          console.log(`Auto-advance timeout: isLastQuestion=${isLastQuestion}`)
+          
+          if (isLastQuestion) {
+            // Last question - complete entire interview
+            console.log('Submitting interview (last question reached)')
+            setSubmitting(true)
+            handleSubmitAnswer()
+          } else {
+            // Move to next question
+            console.log(`Advancing to next question: ${currentIndex + 1} -> ${currentIndex + 2}`)
+            setCurrentQuestionIndex((prev) => {
+              // Safety check: don't go beyond total questions
+              const nextIndex = Math.min(prev + 1, totalQuestions - 1)
+              console.log(`Index update: ${prev} -> ${nextIndex}`)
+              return nextIndex
+            })
+            setTimeLeft(300)
+            setRecordedAnswer(null)
+          }
+        } catch (error) {
+          console.error('Error auto-advancing:', error)
+          toast.error('Error moving to next question. Please click Next manually.')
+        }
+      }, 800) // 800ms delay to allow user to see the transcript
+    } catch (error) {
+      console.error('Error in voice recording completion:', error)
+      toast.error('Error processing your answer. Please try again.')
+    }
+  }
+
   // ===== PRODUCTION READINESS: Save Progress After Each Answer =====
   const saveProgress = async () => {
-    // For mock interviews, just save to localStorage
-    if (isPublicMock) {
-      localStorage.setItem('interviewAnswers', JSON.stringify(answers))
+    // For mock interviews, save to backend API
+    if (isMockInterview && interviewData) {
+      try {
+        const currentAnswer = answers[currentQuestionIndex]
+        if (!currentAnswer || !currentAnswer.content) {
+          return // Nothing to save
+        }
+
+        await fetch(`${import.meta.env.VITE_API_URL}/mock/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            interviewId: interviewData.interviewId,
+            questionIndex: currentQuestionIndex,
+            answer: currentAnswer.content,
+            format: currentAnswer.format || 'text',
+          }),
+        })
+
+        // Also save to localStorage as backup
+        localStorage.setItem('interviewAnswers', JSON.stringify(answers))
+      } catch (error) {
+        console.warn('Could not save answer to server:', error)
+        // Save locally as fallback
+        localStorage.setItem('interviewAnswers', JSON.stringify(answers))
+      }
       return
     }
 
+    // For authenticated interviews, save to server
     if (!sessionLockId || !interviewData) return
 
     try {
@@ -235,17 +339,83 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   }
 
   const handleSubmitAnswer = async () => {
-    if (submitting) return
+    if (submitting || !interviewData) return
+
+    // Safety check: prevent submission if question index is invalid
+    const totalQuestions = interviewData.questions.length
+    if (currentQuestionIndex >= totalQuestions) {
+      console.error(`Invalid question index: ${currentQuestionIndex} >= ${totalQuestions}`)
+      toast.error('Invalid interview state. Please refresh and try again.')
+      return
+    }
 
     setSubmitting(true)
 
     try {
       // Check if last question
-      if (currentQuestionIndex === interviewData.questions.length - 1) {
+      const isLastQuestion = currentQuestionIndex === totalQuestions - 1
+      console.log(`Submitting answer: Q${currentQuestionIndex + 1}/${totalQuestions}, isLast=${isLastQuestion}`)
+      
+      if (isLastQuestion) {
         // All questions answered - save and transition
         localStorage.setItem('interviewAnswers', JSON.stringify(answers))
 
-        // For public mock interviews, skip backend submission
+        // For mock interviews, complete via backend API
+        if (isMockInterview) {
+          try {
+            // Save final answer
+            const currentAnswer = answers[currentQuestionIndex]
+            if (currentAnswer && currentAnswer.content) {
+              await fetch(`${import.meta.env.VITE_API_URL}/mock/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  interviewId: interviewData.interviewId,
+                  questionIndex: currentQuestionIndex,
+                  answer: currentAnswer.content,
+                  format: currentAnswer.format || 'text',
+                }),
+              })
+            }
+
+            // Complete interview
+            const completeResponse = await fetch(
+              `${import.meta.env.VITE_API_URL}/mock/complete/${interviewData.interviewId}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+              }
+            )
+
+            if (!completeResponse.ok) {
+              throw new Error('Failed to complete interview')
+            }
+
+            const completeResult = await completeResponse.json()
+
+            toast.success('Interview submitted successfully!', {
+              position: 'top-right',
+              autoClose: 1500,
+            })
+
+            // Navigate to mock results page
+            setTimeout(() => {
+              localStorage.setItem('mockInterviewResult', JSON.stringify(completeResult.data))
+              navigate(`/mock-interview-result/${interviewData.interviewId}`)
+            }, 1500)
+
+            setSubmitting(false)
+            return
+          } catch (error) {
+            console.error('Error completing mock interview:', error)
+            toast.error('Error submitting interview: ' + error.message, {
+              position: 'top-right',
+              autoClose: 3000,
+            })
+          }
+        }
+
+        // For public mock interviews with callback
         if (isPublicMock && onComplete) {
           toast.success('Interview submitted successfully!', {
             position: 'top-right',
@@ -312,13 +482,7 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
           })
 
           setTimeout(() => {
-            if (isPublicMock && onComplete) {
-              // For public mock interviews, call the onComplete callback
-              onComplete()
-            } else {
-              // For regular interviews with token
-              navigate(`/interview/session/${token}/results`)
-            }
+            navigate(`/interview/session/${token}/results`)
           }, 2000)
         } catch (error) {
           toast.error(
@@ -335,7 +499,6 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
         setCurrentQuestionIndex((prev) => prev + 1)
         setTimeLeft(300)
         setRecordedAnswer(null)
-        setAnswerType('text')
       }
     } catch (error) {
       toast.error('Failed to process answer', {
@@ -359,153 +522,169 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
     )
   }
 
+  // Safety check for questions data
+  if (!interviewData.questions || !Array.isArray(interviewData.questions) || interviewData.questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <AlertCircle size={48} className="mx-auto text-red-600 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Questions</h2>
+          <p className="text-gray-600 mb-6">No questions were generated for this interview.</p>
+          <button
+            onClick={() => navigate('/mock-interview-setup')}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+          >
+            Start New Interview
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const progressPercentage = ((currentQuestionIndex + 1) / interviewData.questions.length) * 100
   const currentAnswer = answers[currentQuestionIndex]
+  const currentQuestion = interviewData.questions[currentQuestionIndex]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Session Status Banner */}
-        {retryingSubmission && (
-          <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center gap-3">
-            <AlertCircle className="text-orange-600" size={20} />
-            <span className="text-orange-800 text-sm font-medium">
-              Connection issue detected. Retrying submission...
-            </span>
-          </div>
-        )}
-
-        {/* Header with Progress */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold text-gray-900">Interview</h1>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-600">Time remaining</p>
-                <p className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-gray-900'}`}>
-                  {formatTime(timeLeft)}
-                </p>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Fixed Header with Timer and Progress */}
+        <div className="fixed top-0 left-0 right-0 bg-white shadow-lg z-50">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Interview in Progress</h1>
+                <p className="text-gray-600">Question {currentQuestionIndex + 1} of {interviewData.questions.length}</p>
+              </div>
+              <div className={`text-3xl font-bold ${timeLeft <= 60 ? 'text-red-600' : 'text-indigo-600'}`}>
+                {formatTime(timeLeft)}
               </div>
             </div>
-          </div>
 
-          {/* Progress Bar */}
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-gray-700">
-                Question {currentQuestionIndex + 1} of {interviewData.questions.length}
-              </p>
-              <p className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}%</p>
-            </div>
+            {/* Progress Bar */}
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progressPercentage}%` }}
               ></div>
             </div>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Question Section */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg p-6 md:p-8">
-              {/* Question */}
-              <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{currentQuestion?.question}</h2>
+        {/* Main Content - with margin to account for fixed header */}
+        <div className="mt-32 space-y-6">
+          {/* Retry Status Banner */}
+          {retryingSubmission && (
+            <div className="p-4 bg-orange-50 border border-orange-300 rounded-lg flex items-center gap-3">
+              <AlertCircle className="text-orange-600" size={20} />
+              <span className="text-orange-800 text-sm font-medium">
+                Connection issue detected. Retrying submission...
+              </span>
+            </div>
+          )}
+
+          {/* Question Display */}
+          <div className="bg-white rounded-lg shadow-lg p-8 select-none">
+            <div className="mb-8">
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex-1">{currentQuestion}</h2>
                 <button
-                  onClick={() => speakText(currentQuestion?.question)}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition font-medium text-sm"
+                  onClick={() => speakText(currentQuestion)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition font-medium text-sm whitespace-nowrap"
+                  title="Read question aloud"
                 >
                   <Volume2 size={18} />
                   Read Aloud
                 </button>
               </div>
+            </div>
 
-              {/* Answer Type Selector */}
-              <div className="mb-6 pb-6 border-b border-gray-200">
-                <p className="text-sm font-medium text-gray-700 mb-3">Answer format:</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => {
-                      setAnswerType('text')
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition ${
-                      answerType === 'text'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Text
-                  </button>
-                  <button
-                    onClick={() => {
-                      setAnswerType('voice')
-                    }}
-                    className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
-                      answerType === 'voice'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    <Phone size={16} />
-                    Voice
-                  </button>
-                </div>
+            {/* Answer Format Selector */}
+            <div className="mb-6 pb-6 border-b border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Answer format:</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setAnswerType('text')}
+                  className={`px-6 py-2 rounded-lg font-medium transition ${
+                    answerType === 'text'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Text
+                </button>
+                <button
+                  onClick={() => setAnswerType('voice')}
+                  className={`px-6 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
+                    answerType === 'voice'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <Phone size={16} />
+                  Voice
+                </button>
               </div>
+            </div>
 
-              {/* Answer Input */}
+            {/* Answer Input Section */}
+            <div className="space-y-4 mb-8">
               {answerType === 'text' && (
-                <div className="mb-6">
-                  <textarea
-                    value={currentAnswer?.content || ''}
-                    onChange={(e) => handleTextAnswer(e.target.value)}
-                    placeholder="Type your answer here..."
-                    className="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent resize-none"
-                  />
-                </div>
+                <textarea
+                  value={currentAnswer?.content || ''}
+                  onChange={(e) => handleTextAnswer(e.target.value)}
+                  placeholder="Type your answer here... (minimum 5 characters)"
+                  className="w-full h-48 p-4 border-2 border-gray-300 rounded-lg focus:border-indigo-600 focus:outline-none resize-none font-medium"
+                  disabled={submitting}
+                />
               )}
 
               {answerType === 'voice' && (
-                <div className="mb-6">
-                  <VoiceRecorder onRecordingComplete={handleVoiceAnswer} />
+                <div className="space-y-4">
+                  <VoiceRecorder 
+                    onTranscript={handleVoiceAnswer}
+                    onRecordingComplete={handleVoiceRecordingComplete}
+                  />
                   {recordedAnswer && (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                       <p className="text-sm font-medium text-gray-700 mb-2">Recorded transcript:</p>
-                      <p className="text-gray-900">{recordedAnswer}</p>
+                      <p className="text-gray-900 leading-relaxed">{recordedAnswer}</p>
                     </div>
                   )}
                 </div>
               )}
+            </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex gap-3 justify-between">
-                <button
-                  onClick={() => {
-                    if (currentQuestionIndex > 0) {
-                      setCurrentQuestionIndex((prev) => prev - 1)
-                      setTimeLeft(300)
-                    }
-                  }}
-                  disabled={currentQuestionIndex === 0}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition ${
-                    currentQuestionIndex === 0
-                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                      : 'bg-gray-600 text-white hover:bg-gray-700'
-                  }`}
-                >
-                  <ChevronLeft size={18} />
-                  Previous
-                </button>
+            {/* Navigation Buttons - Only show Next Question button in Text mode */}
+            <div className="flex gap-4 justify-between pt-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  if (currentQuestionIndex > 0) {
+                    setCurrentQuestionIndex((prev) => prev - 1)
+                    setTimeLeft(300)
+                    setRecordedAnswer(null)
+                  }
+                }}
+                disabled={currentQuestionIndex === 0 || submitting}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition ${
+                  currentQuestionIndex === 0 || submitting
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
+              >
+                <ChevronLeft size={18} />
+                Previous
+              </button>
 
+              {/* Next Question button - Only show in Text mode */}
+              {answerType === 'text' && (
                 <button
                   onClick={handleSubmitAnswer}
                   disabled={submitting || !currentAnswer}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium transition ${
+                  className={`flex items-center gap-2 px-8 py-3 rounded-lg font-medium transition ${
                     submitting || !currentAnswer
-                      ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700'
                   }`}
                 >
                   {submitting ? (
@@ -515,19 +694,35 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
                     </>
                   ) : currentQuestionIndex === interviewData.questions.length - 1 ? (
                     <>
-                      Complete
+                      Complete Interview
                       <SkipForward size={18} />
                     </>
                   ) : (
                     <>
-                      Next
+                      Next Question
                       <ChevronRight size={18} />
                     </>
                   )}
                 </button>
-              </div>
+              )}
+
+              {/* Voice mode message - Show when in Voice mode */}
+              {answerType === 'voice' && (
+                <div className="flex-1 flex items-center justify-end">
+                  <div className="px-6 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium text-sm">
+                    Answer will submit automatically after recording
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Character Count for Text Answer */}
+          {answerType === 'text' && (
+            <div className="text-right text-sm text-gray-600">
+              {(currentAnswer?.content || '').length} characters
+            </div>
+          )}
         </div>
       </div>
     </div>

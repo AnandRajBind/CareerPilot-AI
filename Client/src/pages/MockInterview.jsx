@@ -3,67 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { Loader, AlertCircle } from 'lucide-react'
 
-// Mock questions by job role
-const MOCK_QUESTIONS = {
-  'frontend': [
-    'What is React and what are its key advantages?',
-    'Explain the difference between state and props in React',
-    'What is the Virtual DOM and how does it work?',
-    'How do you handle forms in React?',
-    'What are React hooks and give examples of commonly used ones',
-    'Explain the concept of component lifecycle in React',
-    'What is the difference between controlled and uncontrolled components?',
-    'How would you optimize the performance of a React application?',
-  ],
-  'backend': [
-    'What is a REST API and how does it work?',
-    'Explain the concept of database indexing',
-    'What are the SOLID principles in software development?',
-    'How do you handle authentication and authorization?',
-    'What is the difference between SQL and NoSQL databases?',
-    'Explain the concept of microservices architecture',
-    'How do you handle errors and exceptions in your code?',
-    'What is caching and how does it improve performance?',
-  ],
-  'fullstack': [
-    'Describe a full-stack web application architecture you have built',
-    'How do you ensure security between frontend and backend?',
-    'Explain your approach to API design and documentation',
-    'How do you handle database migrations?',
-    'What tools and technologies do you use for deployment?',
-    'How do you debug issues across frontend and backend?',
-    'Describe your experience with version control systems',
-    'How do you optimize database queries for performance?',
-  ],
-  'default': [
-    'Tell me about yourself and your experience',
-    'What is your greatest professional achievement?',
-    'How do you approach solving technical problems?',
-    'Describe a time you had to learn something new quickly',
-    'What is your experience with team collaboration?',
-  ],
-}
-
-const generateMockQuestions = (jobRole, numberOfQuestions) => {
-  const roleKey = jobRole.toLowerCase()
-  let questionPool = MOCK_QUESTIONS[roleKey] || MOCK_QUESTIONS['default']
-  
-  // Shuffle and select the required number of questions
-  const shuffled = [...questionPool].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, Math.min(numberOfQuestions, shuffled.length)).map(q => ({
-    question: q,
-    type: 'open-ended'
-  }))
-}
-
 const MockInterview = () => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [studentInfo, setStudentInfo] = useState(null)
   const [showJobRoleForm, setShowJobRoleForm] = useState(false)
   const [formData, setFormData] = useState({
-    jobRole: '',
-    experienceLevel: 'fresher',
+    jobRole: 'frontend',
+    experienceLevel: 'junior',
     interviewType: 'technical',
     difficultyLevel: 'medium',
     numberOfQuestions: 5,
@@ -123,37 +70,56 @@ const MockInterview = () => {
     setIsSubmitting(true)
 
     try {
-      // Clear any stale session data from previous interviews
-      sessionStorage.removeItem('sessionLockId')
-      sessionStorage.removeItem('interviewId')
+      // Call backend to start mock interview
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/mock/start`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentName: studentInfo.studentName,
+            rollNumber: studentInfo.rollNumber,
+            collegeName: studentInfo.collegeName,
+            email: studentInfo.email || '',
+            ...formData,
+            numberOfQuestions: parseInt(formData.numberOfQuestions),
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || 'Failed to start interview')
+      }
+
+      const result = await response.json()
+
+      // Clear any stale session data
       localStorage.removeItem('currentInterview')
       localStorage.removeItem('interviewAnswers')
+      sessionStorage.removeItem('sessionLockId')
+      sessionStorage.removeItem('interviewId')
 
-      // Generate mock questions based on job role and number of questions
-      const questions = generateMockQuestions(formData.jobRole, parseInt(formData.numberOfQuestions))
-
-      // Store interview preferences
+      // Store interview data for the screen component
       const interviewData = {
         ...studentInfo,
         ...formData,
-        questions, // Include generated questions
-        interviewId: 'mock-interview',
+        interviewId: result.data.interviewId,
+        sessionId: result.data.sessionId,
+        questions: result.data.questions,
+        numberOfQuestions: result.data.numberOfQuestions,
         interviewStartTime: new Date().toISOString(),
       }
 
       localStorage.setItem('interviewData', JSON.stringify(interviewData))
-      localStorage.setItem('candidateInfo', JSON.stringify({
-        name: studentInfo.name,
-        email: `${studentInfo.rollNumber}@student.edu`,
-        rollNumber: studentInfo.rollNumber,
-        collegeName: studentInfo.collegeName,
-      }))
+      localStorage.setItem('mockInterviewData', JSON.stringify(interviewData))
+      localStorage.setItem('isMockInterview', 'true')
 
-      // Navigate to interview screen (without token since it's public)
+      // Navigate to interview screen
       navigate('/public-interview')
     } catch (error) {
       console.error('Error starting interview:', error)
-      toast.error('Failed to start interview. Please try again.', {
+      toast.error(error.message || 'Failed to start interview. Please try again.', {
         position: 'top-right',
         autoClose: 3000,
       })
@@ -210,16 +176,23 @@ const MockInterview = () => {
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Job Role / Position *
               </label>
-              <input
-                type="text"
+              <select
                 name="jobRole"
                 value={formData.jobRole}
                 onChange={handleChange}
-                placeholder="e.g., Full Stack Developer, Frontend Engineer, Data Scientist"
                 className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition ${
                   errors.jobRole ? 'border-red-500 bg-red-50' : 'border-gray-300'
                 }`}
-              />
+              >
+                <option value="">-- Select a job role --</option>
+                <option value="frontend">Frontend Developer</option>
+                <option value="backend">Backend Developer</option>
+                <option value="fullstack">Full Stack Developer</option>
+                <option value="java">Java Developer</option>
+                <option value="python">Python Developer</option>
+                <option value="data-science">Data Scientist</option>
+                <option value="hr">HR / Behavioral</option>
+              </select>
               {errors.jobRole && (
                 <p className="text-red-500 text-sm mt-1">{errors.jobRole}</p>
               )}
@@ -236,8 +209,7 @@ const MockInterview = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               >
-                <option value="fresher">Fresher (0-1 years)</option>
-                <option value="junior">Junior (1-3 years)</option>
+                <option value="junior">Junior (0-3 years)</option>
                 <option value="mid">Mid-level (3-5 years)</option>
                 <option value="senior">Senior (5+ years)</option>
               </select>
@@ -256,7 +228,7 @@ const MockInterview = () => {
               >
                 <option value="technical">Technical</option>
                 <option value="behavioral">Behavioral</option>
-                <option value="mixed">Mixed (Technical + Behavioral)</option>
+                <option value="all">Mixed (Technical + Behavioral)</option>
               </select>
             </div>
 

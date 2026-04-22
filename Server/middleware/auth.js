@@ -21,7 +21,6 @@ const protect = async (req, res, next) => {
     if (!req.company) {
       return next(new AppError("Company not found", 404));
     }
-
     next();
   } catch (error) {
     if (error.name === "TokenExpiredError") {

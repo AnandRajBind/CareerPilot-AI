@@ -14,6 +14,7 @@ const userRoutes = require("./routes/user");
 const interviewRoutes = require("./routes/interview");
 const templateRoutes = require("./routes/template");
 const streamRoutes = require("./routes/stream");
+const mockRoutes = require("./routes/mock");
 
 const app = express();
 
@@ -86,6 +87,11 @@ app.get("/api/health", (req, res) => {
 
 // API Routes
 app.use("/api/auth", authRoutes);
+
+// Public Routes (No Authentication Required)
+app.use("/api/mock", mockRoutes); // Mock interviews - public access
+
+// Protected Routes (Authentication Required)
 app.use("/api/user", userRoutes);
 app.use("/api/interviews", interviewRoutes);
 app.use("/api/company/interviews", templateRoutes);

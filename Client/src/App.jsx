@@ -29,6 +29,9 @@ import PublicInterviewResults from './pages/PublicInterviewResults'
 import InterviewSuccess from './pages/InterviewSuccess'
 import MockInterview from './pages/MockInterview'
 import PublicInterview from './pages/PublicInterview'
+import PublicMockInterview from './pages/PublicMockInterview'
+import MockInterviewResult from './pages/MockInterviewResult'
+import MockInterviewDashboard from './pages/MockInterviewDashboard'
 
 // Component to conditionally render navbar based on route
 const NavbarWrapper = () => {
@@ -38,6 +41,8 @@ const NavbarWrapper = () => {
   if (location.pathname === '/interview/success' || 
       location.pathname === '/mock-interview' ||
       location.pathname === '/public-interview' ||
+      location.pathname.match(/^\/mock-interview-setup$/) ||
+      location.pathname.match(/^\/mock-interview-result\/.+/) ||
       location.pathname.match(/^\/interview\/session\/.*\/video$/) ||
       location.pathname.match(/^\/interview\/session\/.*\/system-check$/) ||
       location.pathname.match(/^\/interview\/session\/[a-f0-9]+$/)) {
@@ -62,7 +67,10 @@ function App() {
                 <Route path="/register" element={<Register />} />
                 
                 {/* Mock Interview for Students (No Auth Required) */}
-                <Route path="/mock-interview" element={<MockInterview />} />
+                <Route path="/mock-interview" element={<PublicMockInterview />} />
+                <Route path="/mock-interview-setup" element={<MockInterview />} />
+                <Route path="/mock-interview-result/:interviewId" element={<MockInterviewResult />} />
+                <Route path="/mock-interview-dashboard" element={<MockInterviewDashboard />} />
                 <Route path="/public-interview" element={<PublicInterview />} />
                 
                 {/* Candidate Features */}
