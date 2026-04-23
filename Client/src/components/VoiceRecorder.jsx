@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Mic, Square, AlertCircle } from 'lucide-react'
 import {
   startListening,
@@ -14,6 +14,7 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
   const [error, setError] = useState(null)
   const [isSupported, setIsSupported] = useState(false)
   const [permission, setPermission] = useState(null)
+  const finalTranscriptRef = useRef('') // Track final transcript to avoid closure issues
 
   // Check browser support on mount
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
     setError(null)
     setTranscript('')
     setInterimTranscript('')
+    finalTranscriptRef.current = '' // Reset ref
     setIsListening(true)
 
     try {
@@ -51,6 +53,12 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
         onResult: (data) => {
           setTranscript(data.transcript)
           setInterimTranscript(data.interimTranscript)
+          
+          // Track final transcript in ref to avoid closure issues
+          if (data.isFinal) {
+            finalTranscriptRef.current = data.transcript
+            console.log(`Final transcript captured: ${data.transcript.substring(0, 50)}...`)
+          }
 
           if (data.isFinal && autoInsert && onTranscript) {
             onTranscript(data.transcript)
@@ -58,18 +66,27 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
         },
         onEnd: () => {
           setIsListening(false)
-          if (transcript && onTranscript) {
-            onTranscript(transcript)
+          
+          // Use ref value instead of state to avoid closure issues
+          const finalTranscript = finalTranscriptRef.current || transcript
+          console.log(`onEnd called, finalTranscript: "${finalTranscript.substring(0, 50)}..."`)
+          
+          if (finalTranscript && onTranscript) {
+            onTranscript(finalTranscript)
           }
-          // Call completion callback with transcript after recording ends
-          if (transcript && onRecordingComplete) {
-            // Small delay to ensure state is updated
-            setTimeout(() => {
-              onRecordingComplete(transcript)
-            }, 100)
-          } else if (!transcript && onRecordingComplete) {
-            // Call even if no transcript for error handling
-            onRecordingComplete(null)
+          
+          // Call completion callback with final transcript
+          if (finalTranscript && onRecordingComplete) {
+            console.log(`Calling onRecordingComplete with: "${finalTranscript.substring(0, 50)}..."`)
+            // Use Promise.resolve to ensure it's called in next tick
+            Promise.resolve().then(() => {
+              onRecordingComplete(finalTranscript)
+            })
+          } else if (!finalTranscript) {
+            console.log('No transcript captured, calling onRecordingComplete with null')
+            if (onRecordingComplete) {
+              onRecordingComplete(null)
+            }
           }
         },
         onError: (error) => {
@@ -77,9 +94,11 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
           const errorMsg = `Microphone error: ${error}`
           setError(errorMsg)
           if (onError) onError(errorMsg)
+          console.error('Speech recognition error:', errorMsg)
         },
         onStart: () => {
           setError(null)
+          console.log('Speech recognition started')
         },
       })
     } catch (err) {
@@ -87,6 +106,7 @@ export default function VoiceRecorder({ onTranscript, onError, onRecordingComple
       const errorMsg = err.message || 'Failed to start voice recording'
       setError(errorMsg)
       if (onError) onError(errorMsg)
+      console.error('Voice recorder error:', errorMsg)
     }
   }
 

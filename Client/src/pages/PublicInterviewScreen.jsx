@@ -4,6 +4,8 @@ import { toast } from 'react-toastify'
 import { ChevronRight, ChevronLeft, Volume2, Phone, SkipForward, Loader, AlertCircle } from 'lucide-react'
 import { speakText } from '../utils/speechUtils'
 import VoiceRecorder from '../components/VoiceRecorder'
+import AIAvatar from '../components/AIAvatar'
+import TranscriptPanel from '../components/TranscriptPanel'
 import { useMedia } from '../context/MediaContext'
 import { retryWithBackoff, retryInterviewSubmission } from '../services/retryService'
 
@@ -23,6 +25,9 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   const [isResuming, setIsResuming] = useState(false)
   const [retryingSubmission, setRetryingSubmission] = useState(false)
   const [isMockInterview, setIsMockInterview] = useState(false) // Flag to detect mock interviews
+  const [isMockAISpeaking, setIsMockAISpeaking] = useState(false) // AI speaking indicator for mock
+  const [mockTranscript, setMockTranscript] = useState([]) // Transcript for mock interview
+  const [transcriptInitialized, setTranscriptInitialized] = useState(false) // Track if transcript is initialized
   const sessionTimeoutRef = useRef(null)
 
   // ===== PRODUCTION READINESS: Session Recovery on Mount =====
@@ -69,6 +74,8 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
           if (savedAnswers) {
             setAnswers(JSON.parse(savedAnswers))
           }
+          // Default to voice mode for mock interviews
+          setAnswerType('voice')
           setIsResuming(false)
           return
         }
@@ -184,6 +191,41 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
     return () => clearInterval(timer)
   }, [interviewData, currentQuestionIndex])
 
+  // ===== MOCK INTERVIEW ENHANCEMENT: Initialize transcript once on mount =====
+  useEffect(() => {
+    if (!isMockInterview || !interviewData?.questions || transcriptInitialized) return
+
+    // Initialize transcript ONCE with all questions
+    const initialTranscript = interviewData.questions.map((question) => ({
+      question,
+      answer: '',
+    }))
+    setMockTranscript(initialTranscript)
+    setTranscriptInitialized(true)
+  }, [isMockInterview, interviewData, transcriptInitialized])
+
+  // ===== MOCK INTERVIEW: Auto-play questions when question index changes =====
+  useEffect(() => {
+    if (!isMockInterview || !interviewData?.questions) return
+
+    // Auto-play the question for mock interviews
+    const currentQuestion = interviewData.questions[currentQuestionIndex]
+    if (currentQuestion) {
+      // Set AI as speaking
+      setIsMockAISpeaking(true)
+      
+      // Speak the question
+      speakText(currentQuestion)
+      
+      // Stop speaking indicator after a reasonable time
+      const speakingTimeout = setTimeout(() => {
+        setIsMockAISpeaking(false)
+      }, 3000) // 3 seconds - adjust based on question length
+
+      return () => clearTimeout(speakingTimeout)
+    }
+  }, [isMockInterview, interviewData?.questions, currentQuestionIndex])
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -191,29 +233,59 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   }
 
   const handleTextAnswer = (value) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: {
-        type: 'text',
-        content: value,
-      },
-    }))
+    setAnswers((prev) => {
+      const updated = {
+        ...prev,
+        [currentQuestionIndex]: {
+          type: 'text',
+          content: value,
+        },
+      }
+      
+      // Update mock transcript immediately when answer changes
+      if (isMockInterview && value.trim()) {
+        setMockTranscript((prevTranscript) => {
+          const transcriptCopy = [...prevTranscript]
+          if (transcriptCopy[currentQuestionIndex]) {
+            transcriptCopy[currentQuestionIndex].answer = value
+          }
+          return transcriptCopy
+        })
+      }
+      
+      return updated
+    })
   }
 
   const handleVoiceAnswer = (transcript) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQuestionIndex]: {
-        type: 'voice',
-        content: transcript,
-      },
-    }))
+    setAnswers((prev) => {
+      const updated = {
+        ...prev,
+        [currentQuestionIndex]: {
+          type: 'voice',
+          content: transcript,
+        },
+      }
+      
+      // Update mock transcript with voice answer
+      if (isMockInterview && transcript.trim()) {
+        setMockTranscript((prevTranscript) => {
+          const transcriptCopy = [...prevTranscript]
+          if (transcriptCopy[currentQuestionIndex]) {
+            transcriptCopy[currentQuestionIndex].answer = transcript
+          }
+          return transcriptCopy
+        })
+      }
+      
+      return updated
+    })
     setRecordedAnswer(transcript)
   }
 
   // Handle voice recording completion - automatically move to next question
   const handleVoiceRecordingComplete = async (transcript) => {
-    if (!transcript || !interviewData) return // No transcript or interview data, do nothing
+    if (!transcript || !interviewData || submitting) return // No transcript or interview data, do nothing
     
     try {
       // IMPORTANT: Calculate current state values BEFORE async operations
@@ -221,20 +293,36 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
       const currentIndex = currentQuestionIndex
       const isLastQuestion = currentIndex >= totalQuestions - 1 // Guard against invalid indices
       
-      console.log(`Voice Recording: Q${currentIndex + 1}/${totalQuestions}, isLastQuestion=${isLastQuestion}`)
+      console.log(`Voice Recording Complete: Q${currentIndex + 1}/${totalQuestions}, isLastQuestion=${isLastQuestion}`)
       
-      // Save answer state immediately
-      setAnswers((prev) => ({
-        ...prev,
-        [currentIndex]: {
-          type: 'voice',
-          content: transcript,
-        },
-      }))
+      // Step 1: Update local state with answer
+      setAnswers((prev) => {
+        const updated = {
+          ...prev,
+          [currentIndex]: {
+            type: 'voice',
+            content: transcript,
+          },
+        }
+        console.log(`Answers updated for Q${currentIndex}: ${transcript.substring(0, 50)}...`)
+        return updated
+      })
+      
+      // Step 2: Update transcript display
+      setMockTranscript((prev) => {
+        const updated = [...prev]
+        if (updated[currentIndex]) {
+          updated[currentIndex].answer = transcript
+          console.log(`Transcript updated for Q${currentIndex}`)
+        }
+        return updated
+      })
+      
       setRecordedAnswer(transcript)
 
-      // Save the answer to backend first - use captured values
+      // Step 3: Save the answer to backend
       if (isMockInterview && interviewData) {
+        console.log(`Saving answer to backend for Q${currentIndex}...`)
         const saveResponse = await fetch(`${import.meta.env.VITE_API_URL}/mock/answer`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -247,31 +335,30 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
         })
 
         if (!saveResponse.ok) {
-          console.error('Failed to save answer:', saveResponse.status)
+          console.error(`Failed to save answer: ${saveResponse.status}`)
           toast.error('Failed to save your answer. Please try again.')
           return
         }
+        console.log(`Successfully saved answer for Q${currentIndex}`)
       }
 
-      // Small delay to show transcript, then auto-advance
+      // Step 4: Auto-advance after successful save and delay
+      console.log(`Starting auto-advance with 1200ms delay...`)
       setTimeout(() => {
         try {
-          console.log(`Auto-advance timeout: isLastQuestion=${isLastQuestion}`)
+          console.log(`Auto-advance timeout triggered: isLastQuestion=${isLastQuestion}`)
           
           if (isLastQuestion) {
             // Last question - complete entire interview
-            console.log('Submitting interview (last question reached)')
+            console.log('Last question reached - submitting interview')
             setSubmitting(true)
-            handleSubmitAnswer()
+            // Call handleSubmitAnswer in next tick to avoid stale closure
+            Promise.resolve().then(() => handleSubmitAnswer())
           } else {
             // Move to next question
-            console.log(`Advancing to next question: ${currentIndex + 1} -> ${currentIndex + 2}`)
-            setCurrentQuestionIndex((prev) => {
-              // Safety check: don't go beyond total questions
-              const nextIndex = Math.min(prev + 1, totalQuestions - 1)
-              console.log(`Index update: ${prev} -> ${nextIndex}`)
-              return nextIndex
-            })
+            const nextIndex = currentIndex + 1
+            console.log(`Advancing: Q${currentIndex + 1} -> Q${nextIndex + 1}/${totalQuestions}`)
+            setCurrentQuestionIndex(nextIndex)
             setTimeLeft(300)
             setRecordedAnswer(null)
           }
@@ -279,7 +366,7 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
           console.error('Error auto-advancing:', error)
           toast.error('Error moving to next question. Please click Next manually.')
         }
-      }, 800) // 800ms delay to allow user to see the transcript
+      }, 1200) // Increased delay to 1200ms for reliable state updates
     } catch (error) {
       console.error('Error in voice recording completion:', error)
       toast.error('Error processing your answer. Please try again.')
@@ -545,6 +632,178 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
   const currentAnswer = answers[currentQuestionIndex]
   const currentQuestion = interviewData.questions[currentQuestionIndex]
 
+  // ===== MOCK INTERVIEW: Professional AI-driven layout =====
+  if (isMockInterview) {
+    return (
+      <div className="min-h-screen bg-gray-950 text-white">
+        {/* Fixed Header with Timer and Progress */}
+        <div className="fixed top-0 left-0 right-0 bg-gray-900 border-b border-gray-800 z-50">
+          <div className="max-w-full px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold">Interview in Progress</h1>
+                <p className="text-gray-400 text-sm">Question {currentQuestionIndex + 1} of {interviewData.questions.length}</p>
+              </div>
+              <div className={`text-3xl font-bold ${timeLeft <= 60 ? 'text-red-500' : 'text-blue-400'}`}>
+                {formatTime(timeLeft)}
+              </div>
+            </div>
+            {/* Progress Bar */}
+            <div className="w-full bg-gray-800 rounded-full h-1">
+              <div
+                className="bg-gradient-to-r from-blue-600 to-blue-400 h-1 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content Area - with margin for fixed header */}
+        <div className="mt-24 grid grid-cols-12 gap-6 p-6 h-[calc(100vh-120px)]">
+          {/* Left Side: AI Avatar */}
+          <div className="col-span-3 bg-gradient-to-b from-blue-900 to-blue-800 rounded-lg p-6 flex flex-col items-center justify-center">
+            <AIAvatar isSpeaking={isMockAISpeaking} />
+          </div>
+
+          {/* Center: Question and Answer */}
+          <div className="col-span-6 flex flex-col gap-6 overflow-y-auto">
+            {/* Question Display */}
+            <div className="bg-gray-900 rounded-lg border border-gray-800 p-6">
+              <h2 className="text-2xl font-bold text-white mb-4">{currentQuestion}</h2>
+              <button
+                onClick={() => {
+                  setIsMockAISpeaking(true)
+                  speakText(currentQuestion)
+                  setTimeout(() => setIsMockAISpeaking(false), 3000)
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2 text-sm font-medium"
+              >
+                <Volume2 size={16} />
+                Listen Again
+              </button>
+            </div>
+
+            {/* Answer Section */}
+            <div className="bg-gray-900 rounded-lg border border-gray-800 p-6 flex-1 flex flex-col">
+              {/* Answer Format Selector */}
+              <div className="flex gap-3 mb-4 items-center">
+                <button
+                  onClick={() => setAnswerType('text')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    answerType === 'text'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  Text
+                </button>
+                <button
+                  onClick={() => setAnswerType('voice')}
+                  className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${
+                    answerType === 'voice'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  <Phone size={16} />
+                  Voice (Recommended)
+                </button>
+                <span className="text-xs text-gray-400 ml-2">🎤 Answer using voice</span>
+              </div>
+
+              {/* Answer Input */}
+              <div className="flex-1">
+                {answerType === 'text' && (
+                  <textarea
+                    value={currentAnswer?.content || ''}
+                    onChange={(e) => handleTextAnswer(e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full h-full p-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-600 focus:outline-none resize-none"
+                    disabled={submitting}
+                  />
+                )}
+
+                {answerType === 'voice' && (
+                  <div className="space-y-3 h-full flex flex-col">
+                    <VoiceRecorder 
+                      onTranscript={handleVoiceAnswer}
+                      onRecordingComplete={handleVoiceRecordingComplete}
+                    />
+                    {recordedAnswer && (
+                      <div className="flex-1 p-3 bg-gray-800 border border-gray-700 rounded-lg overflow-y-auto">
+                        <p className="text-sm text-gray-400 mb-2">Recorded transcript:</p>
+                        <p className="text-gray-200">{recordedAnswer}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-4 mt-4 pt-4 border-t border-gray-700">
+                <button
+                  onClick={() => {
+                    if (currentQuestionIndex > 0) {
+                      setCurrentQuestionIndex((prev) => prev - 1)
+                      setTimeLeft(300)
+                      setRecordedAnswer(null)
+                    }
+                  }}
+                  disabled={currentQuestionIndex === 0 || submitting}
+                  className="px-6 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition flex items-center gap-2"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+
+                {answerType === 'text' && (
+                  <button
+                    onClick={handleSubmitAnswer}
+                    disabled={submitting || !currentAnswer}
+                    className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition"
+                  >
+                    {submitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader size={16} className="animate-spin" />
+                        {retryingSubmission ? 'Retrying...' : 'Processing...'}
+                      </span>
+                    ) : currentQuestionIndex === interviewData.questions.length - 1 ? (
+                      'Complete Interview'
+                    ) : (
+                      'Next Question'
+                    )}
+                  </button>
+                )}
+
+                {answerType === 'voice' && (
+                  <div className="flex-1 flex items-center justify-between px-4 py-2 bg-green-900 text-green-200 rounded-lg text-sm font-medium gap-3">
+                    <span>✓ Answer will submit automatically</span>
+                    {recordedAnswer && (
+                      <button
+                        onClick={handleSubmitAnswer}
+                        disabled={submitting}
+                        className="px-4 py-1 bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition text-xs whitespace-nowrap"
+                        title="Manually proceed to next question if auto-advance doesn't work"
+                      >
+                        {submitting ? 'Processing...' : 'Next Question'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Transcript Panel */}
+          <div className="col-span-3 h-full">
+            <TranscriptPanel transcript={mockTranscript} />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ===== REAL INTERVIEW: Original layout (unchanged for backward compatibility) =====
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -708,10 +967,33 @@ const PublicInterviewScreen = ({ isPublicMock = false, onComplete = null }) => {
 
               {/* Voice mode message - Show when in Voice mode */}
               {answerType === 'voice' && (
-                <div className="flex-1 flex items-center justify-end">
-                  <div className="px-6 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium text-sm">
+                <div className="flex-1 flex items-center justify-between gap-3">
+                  <div className="px-6 py-3 bg-blue-50 text-blue-700 rounded-lg font-medium text-sm flex-1">
                     Answer will submit automatically after recording
                   </div>
+                  {recordedAnswer && (
+                    <button
+                      onClick={handleSubmitAnswer}
+                      disabled={submitting}
+                      className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition flex items-center gap-2"
+                      title="Manually proceed to next question if auto-advance doesn't work"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader size={16} className="animate-spin" />
+                          Processing...
+                        </>
+                      ) : currentQuestionIndex === interviewData.questions.length - 1 ? (
+                        <>
+                          Complete <SkipForward size={16} />
+                        </>
+                      ) : (
+                        <>
+                          Next <ChevronRight size={16} />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
