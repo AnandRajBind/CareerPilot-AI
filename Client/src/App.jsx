@@ -12,9 +12,6 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import InterviewMode from './pages/InterviewMode'
-import SystemCheck from './pages/SystemCheck'
-import InterviewScreen from './pages/InterviewScreen'
 import InterviewResults from './pages/InterviewResults'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/AdminDashboard'
@@ -75,9 +72,6 @@ function App() {
                 
                 {/* Candidate Features */}
                 <Route path="/candidate-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="/interview-mode" element={<ProtectedRoute><InterviewMode /></ProtectedRoute>} />
-                <Route path="/system-check" element={<ProtectedRoute><SystemCheck /></ProtectedRoute>} />
-                <Route path="/interview-screen" element={<ProtectedRoute><InterviewScreen /></ProtectedRoute>} />
                 <Route path="/interview-results" element={<ProtectedRoute><InterviewResults /></ProtectedRoute>} />
                 
                 {/* Public Interview Session (via template token) */}

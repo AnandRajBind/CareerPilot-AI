@@ -34,12 +34,6 @@ const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <Link
-                  to="/interview-mode"
-                  className="text-gray-700 hover:text-primary transition font-medium"
-                >
-                  Start Interview
-                </Link>
-                <Link
                   to="/dashboard"
                   className="text-gray-700 hover:text-primary transition font-medium"
                 >
@@ -102,13 +96,6 @@ const Navbar = () => {
                     </div>
                   )}
                 </div>
-                <Link
-                  to="/interview-mode"
-                  onClick={() => setIsOpen(false)}
-                  className="block px-4 py-2 text-gray-700 hover:text-primary transition font-medium"
-                >
-                  Start Interview
-                </Link>
                 <Link
                   to="/dashboard"
                   onClick={() => setIsOpen(false)}
