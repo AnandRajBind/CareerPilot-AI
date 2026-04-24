@@ -55,9 +55,7 @@ const Login = () => {
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center mx-auto mb-4">
-              <span className="text-white font-bold text-2xl">P</span>
-            </div>
+            <img src="/Perecrut AI logo.png" alt="Perekrut AI" className="h-12 w-auto mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-dark mb-2">Welcome back</h1>
             <p className="text-gray-600">Sign in to your account to continue</p>
           </div>

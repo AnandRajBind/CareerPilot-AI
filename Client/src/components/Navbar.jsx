@@ -23,9 +23,7 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">P</span>
-            </div>
+            <img src="/Perecrut AI logo.png" alt="Perekrut AI" className="h-8 w-auto" />
             <span className="text-xl font-bold text-dark hidden sm:inline">Perekrut AI</span>
           </Link>
 
