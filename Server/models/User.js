@@ -59,6 +59,27 @@ const companySchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    planUpgradedAt: {
+      type: Date,
+      default: null,
+    },
+    subscriptionStartDate: {
+      type: Date,
+      default: null,
+    },
+    subscriptionEndDate: {
+      type: Date,
+      default: null,
+    },
+    isSubscriptionActive: {
+      type: Boolean,
+      default: false,
+    },
+    lastPaymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
+      default: null,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
@@ -88,6 +109,20 @@ companySchema.methods.matchPassword = async function (enteredPassword) {
 // Method to check if trial is still active
 companySchema.methods.isTrialValid = function () {
   return this.isTrialActive && new Date() < this.trialEndDate;
+};
+
+// Method to check if subscription is active
+companySchema.methods.isSubscriptionValid = function () {
+  return (
+    this.isSubscriptionActive &&
+    this.subscriptionEndDate &&
+    new Date() < this.subscriptionEndDate
+  );
+};
+
+// Method to check if company has access (trial OR active subscription)
+companySchema.methods.hasAccess = function () {
+  return this.isTrialValid() || this.isSubscriptionValid();
 };
 
 // Method to return company without password

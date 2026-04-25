@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from 'react'
-import { Check, Calendar, AlertCircle } from 'lucide-react'
+import { Check, Calendar, AlertCircle, CreditCard } from 'lucide-react'
 import { toast } from 'react-toastify'
 import AdminLayout from '../components/AdminLayout'
+import {
+  loadRazorpayScript,
+  createPaymentOrder,
+  initiateRazorpayPayment,
+  verifyPaymentSignature,
+  getPaymentHistory,
+} from '../utils/razorpayIntegration'
 
 const AdminBilling = () => {
   const [company, setCompany] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [selectedPlan, setSelectedPlan] = useState(null)
   const [processingPlan, setProcessingPlan] = useState(null)
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false)
 
   useEffect(() => {
     fetchCompanyData()
+    loadPaymentGateway()
   }, [])
 
   const fetchCompanyData = async () => {
@@ -29,6 +39,30 @@ const AdminBilling = () => {
     }
   }
 
+  const loadPaymentGateway = async () => {
+    const isLoaded = await loadRazorpayScript()
+    if (!isLoaded) {
+      console.warn('Razorpay script failed to load')
+    }
+  }
+
+  const fetchPaymentHistory = async () => {
+    if (!localStorage.getItem('token')) return
+
+    setHistoryLoading(true)
+    try {
+      const data = await getPaymentHistory(1, 10, localStorage.getItem('token'))
+      setPaymentHistory(data.payments || [])
+    } catch (error) {
+      toast.error('Failed to load payment history', {
+        position: 'top-right',
+        autoClose: 3000,
+      })
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
   const calculateTrialDaysRemaining = () => {
     if (!company?.trialEndDate) return 0
     const endDate = new Date(company.trialEndDate)
@@ -44,53 +78,77 @@ const AdminBilling = () => {
     return today < endDate && company.isTrialActive
   }
 
-  const handlePlanSelect = async (planName) => {
-    if (!company) return
+  const handlePlanSelect = async (planId, planName) => {
+    if (!company || !localStorage.getItem('token')) return
 
-    setProcessingPlan(planName)
+    setProcessingPlan(planId)
+
     try {
-      // Call backend API to update plan
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/user/upgrade-plan`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          planName: planName,
-        }),
-      })
+      // Step 1: Create payment order
+      const token = localStorage.getItem('token')
+      toast.info('Creating payment order...', { autoClose: 2000 })
 
-      if (!response.ok) {
-        throw new Error('Failed to update plan')
+      const orderData = await createPaymentOrder(planId, token)
+
+      // Step 2: Open Razorpay checkout
+      const onPaymentSuccess = async (paymentData) => {
+        try {
+          toast.info('Verifying payment...', { autoClose: 2000 })
+
+          // Step 3: Verify payment with backend
+          const result = await verifyPaymentSignature(paymentData, token)
+
+          // Update company data
+          if (result.company) {
+            localStorage.setItem('company', JSON.stringify(result.company))
+            setCompany(result.company)
+          }
+
+          toast.success(`Successfully upgraded to ${planName} plan! 🎉`, {
+            position: 'top-right',
+            autoClose: 3000,
+          })
+
+          setProcessingPlan(null)
+
+          // Refresh payment history
+          if (showPaymentHistory) {
+            fetchPaymentHistory()
+          }
+        } catch (error) {
+          console.error('Payment verification error:', error)
+          toast.error(error.message || 'Payment verification failed. Please contact support.', {
+            position: 'top-right',
+            autoClose: 3000,
+          })
+          setProcessingPlan(null)
+        }
       }
 
-      const data = await response.json()
-
-      // Update localStorage with new company data
-      if (data.company) {
-        localStorage.setItem('company', JSON.stringify(data.company))
-        setCompany(data.company)
+      const onPaymentError = (errorMessage) => {
+        console.error('Payment error:', errorMessage)
+        toast.error(`Payment failed: ${errorMessage}`, {
+          position: 'top-right',
+          autoClose: 3000,
+        })
+        setProcessingPlan(null)
       }
 
-      toast.success(`Successfully upgraded to ${planName} plan!`, {
+      // Open Razorpay checkout
+      await initiateRazorpayPayment(
+        orderData.orderId,
+        orderData.amount,
+        orderData.keyId,
+        company.email,
+        onPaymentSuccess,
+        onPaymentError
+      )
+    } catch (error) {
+      console.error('Plan upgrade error:', error)
+      toast.error(error.message || 'Failed to process payment. Please try again.', {
         position: 'top-right',
         autoClose: 3000,
       })
-
-      setSelectedPlan(planName)
-    } catch (error) {
-      console.error('Plan upgrade error:', error)
-      toast.error(
-        error.message === 'Failed to update plan'
-          ? 'Failed to upgrade plan. Please try again.'
-          : 'An error occurred while upgrading your plan.',
-        {
-          position: 'top-right',
-          autoClose: 3000,
-        }
-      )
-    } finally {
       setProcessingPlan(null)
     }
   }
@@ -99,7 +157,7 @@ const AdminBilling = () => {
     {
       id: 'starter',
       name: 'Starter',
-      price: '$49',
+      price: '₹4,999',
       period: 'month',
       description: 'Perfect for small teams',
       features: [
@@ -114,7 +172,7 @@ const AdminBilling = () => {
     {
       id: 'professional',
       name: 'Professional',
-      price: '$149',
+      price: '₹14,999',
       period: 'month',
       description: 'For growing companies',
       features: [
@@ -129,19 +187,20 @@ const AdminBilling = () => {
       highlighted: true,
     },
     {
-      id: 'team',
-      name: 'Team',
-      price: '$299',
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: '₹29,999',
       period: 'month',
-      description: 'For mid-size teams',
+      description: 'For large organizations',
       features: [
         'Everything in Professional',
         'Advanced analytics & insights',
-        'Up to 50 team members',
+        'Unlimited team members',
         'Custom branding options',
         'API access',
         'Video interview recordings',
         'Advanced reporting tools',
+        'Dedicated support',
       ],
       cta: 'Select Plan',
       highlighted: false,
@@ -241,11 +300,11 @@ const AdminBilling = () => {
                 </p>
               </div>
               <button
-                onClick={() => handlePlanSelect('Professional')}
-                disabled={processingPlan === 'Professional'}
+                onClick={() => handlePlanSelect('professional', 'Professional')}
+                disabled={processingPlan === 'professional'}
                 className="px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium whitespace-nowrap disabled:opacity-50"
               >
-                {processingPlan === 'Professional' ? 'Processing...' : 'Upgrade Now'}
+                {processingPlan === 'professional' ? 'Processing...' : 'Upgrade Now'}
               </button>
             </div>
           </div>
@@ -292,17 +351,17 @@ const AdminBilling = () => {
 
                   {/* CTA Button */}
                   <button
-                    onClick={() => handlePlanSelect(plan.name)}
-                    disabled={processingPlan === plan.name || company?.plan === plan.id}
+                    onClick={() => handlePlanSelect(plan.id, plan.name)}
+                    disabled={processingPlan === plan.id || company?.plan === plan.id}
                     className={`w-full py-3 rounded-lg font-medium transition mb-6 ${
                       company?.plan === plan.id
                         ? 'bg-green-100 text-green-800 border border-green-300'
                         : plan.highlighted
                         ? 'bg-primary text-white hover:bg-primary/90 disabled:opacity-50'
                         : 'border border-gray-300 text-gray-900 hover:bg-gray-50 disabled:opacity-50'
-                    } ${processingPlan === plan.name ? 'cursor-wait' : ''}`}
+                    } ${processingPlan === plan.id ? 'cursor-wait' : ''}`}
                   >
-                    {processingPlan === plan.name
+                    {processingPlan === plan.id
                       ? 'Processing...'
                       : company?.plan === plan.id
                       ? '✓ Current Plan'
@@ -322,6 +381,103 @@ const AdminBilling = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Payment History */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 md:p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <CreditCard className="text-primary" size={24} />
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Payment History</h2>
+                <p className="text-sm text-gray-600">View your transaction history</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowPaymentHistory(!showPaymentHistory)
+                if (!showPaymentHistory) {
+                  fetchPaymentHistory()
+                }
+              }}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition font-medium text-sm"
+            >
+              {showPaymentHistory ? 'Hide History' : 'View History'}
+            </button>
+          </div>
+
+          {showPaymentHistory && (
+            <>
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : paymentHistory.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 font-semibold text-gray-900 text-sm">
+                          Date
+                        </th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-900 text-sm">
+                          Plan
+                        </th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-900 text-sm">
+                          Amount
+                        </th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-900 text-sm">
+                          Status
+                        </th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-900 text-sm">
+                          Order ID
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paymentHistory.map((payment) => (
+                        <tr key={payment._id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {payment.paymentDate
+                              ? new Date(payment.paymentDate).toLocaleDateString()
+                              : new Date(payment.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-sm font-medium text-gray-900">
+                            {payment.planName}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            ₹{(payment.amount / 100).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                payment.status === 'success'
+                                  ? 'bg-green-100 text-green-800'
+                                  : payment.status === 'failed'
+                                  ? 'bg-red-100 text-red-800'
+                                  : payment.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-600 font-mono">
+                            {payment.razorpayOrderId.substring(0, 12)}...
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No payment history found</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* FAQ */}

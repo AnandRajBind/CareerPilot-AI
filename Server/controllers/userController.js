@@ -74,7 +74,7 @@ const upgradePlan = async (req, res, next) => {
     const { planName } = req.body;
 
     // Validate plan name
-    const validPlans = ["Starter", "Professional", "Team"];
+    const validPlans = ["Starter", "Professional", "Team", "Enterprise"];
     if (!planName || !validPlans.includes(planName)) {
       return next(buildError("Invalid plan name", 400));
     }
@@ -83,7 +83,8 @@ const upgradePlan = async (req, res, next) => {
     const planIdMap = {
       Starter: "starter",
       Professional: "professional",
-      Team: "team",
+      Team: "enterprise",
+      Enterprise: "enterprise",
     };
 
     const company = await Company.findByIdAndUpdate(
